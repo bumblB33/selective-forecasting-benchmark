@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "forecasting-v3"
+version = "0.1.0"
+requires-python = ">=3.11"
+dependencies = [
+    "statsforecast>=1.7",
+    "mlforecast>=0.13",
+    "lightgbm>=4.0",
+    "pandas>=2.0",
+    "numpy>=1.26",
+    "scipy>=1.11",
+    "matplotlib>=3.8",
+    "holidays>=0.46",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0", "flake8>=6.0", "flake8-pyproject>=1.0", "black>=23.0"]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["daily", "interval", "core", "reporting", "scripts"]
+
+[project.scripts]
+forecasting-daily      = "daily.run:main"
+forecasting-interval   = "interval.run:main"
+forecasting-regenerate = "scripts.regenerate_report:main"
+forecasting-parity     = "scripts.parity_check:main"
+forecasting-ablation   = "scripts.configure_training_length:main"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.flake8]
+max-line-length = 100
+exclude = [".git", "__pycache__", ".venv", "build", "dist"]
