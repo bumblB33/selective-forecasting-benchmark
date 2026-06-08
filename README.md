@@ -1,38 +1,36 @@
 # Forecasting Benchmark: Open-Source Models vs. Production Baseline
 
-A benchmarking framework that asks whether Nixtla's open-source forecasting libraries (StatsForecast and MLForecast/LightGBM) can outperform an incumbent production forecasting system at enterprise scale. The framework is tested at two time granularities, daily and 15-minute intervals, using real production data from hundreds of locations.
+Evaluation benchmarking of Nixtla's open-source forecasting libraries (StatsForecast and MLForecast/LightGBM) against a production forecasting system at enterprise scale. The framework is tested at two time granularities, daily and 15-minute intervals, using production data from hundreds of locations.
 
 ---
 
 ## Motivation
 
-Production forecasting systems embedded in software-as-a-service platforms often rely on simple heuristics: year-over-year averages, rolling means of the most recent weeks, or seasonal repeaters. These are interpretable and fast, but they leave accuracy gains on the table that affect downstream decisions such as labor scheduling and inventory management.
+Production forecasting systems in SaaS platforms can be simple. Year-over-year averages, rolling means of the most recent weeks, or seasonal repeaters. These are interpretable and fast, but they can sacrifice accuracy that affects downstream decisions like labor scheduling and inventory management. How much better can open-source models do?
 
-This benchmark asks a precise question: with real production data, statistical rigor, and a fair evaluation framework, how much better can open-source models do?
-
-The short answer, at both daily and 15-minute interval granularities, is: meaningfully better, and the result holds up under statistical testing.
+The short answer: much better.
 
 ---
 
 ## Architecture
 
-Two self-contained pipelines share a common `core/` module for evaluation, preprocessing, and model utilities. Neither pipeline imports from the other's config; all parameters are passed explicitly.
+Shared `core/` module for evaluation, preprocessing, and model utilities. All parameters are passed explicitly.
 
 ```
 forecasting-benchmark/
-├── core/             # Pipeline-agnostic: evaluation, preprocessing, shared models
+├── core/             # Evaluation, preprocessing, shared models
 ├── daily/            # Daily pipeline: 7-day horizon, 105-week training history
 ├── interval/         # 15-min pipeline: 672-interval horizon, 26-week history
 ├── reporting/        # HTML report generation (embedded charts, no external deps)
-├── output_contract/  # Reference: adapting Nixtla UTC timestamps to integer-keyed APIs
-├── snowflake/        # SQL extract templates (schema names are placeholders)
+├── output_contract/  # Adapting UTC timestamps to integer-keyed APIs
+├── snowflake/        # SQL extract templates
 ├── scripts/          # Parity check, report regeneration, ablation study
-├── tests/            # Architecture constraint tests and WAPE behavior tests
+├── tests/            # Constraint and behavior tests
 └── docs/
-    └── adr/          # Architecture Decision Records (001 through 004)
+    └── adr/          # Architecture Decision Records
 ```
 
-Pipeline stages (both pipelines):
+Pipeline stages:
 
 1. Load the CSV extract (data warehouse output, read into a pandas DataFrame).
 2. Drop rows flagged as outliers (mirroring production training exclusions).
@@ -83,7 +81,7 @@ Fourier features (interval): daily K=3, weekly K=2.
 
 ### Two-signal guard
 
-A model is labeled as better than the baseline only when both conditions hold:
+A model is labeled as better than the baseline if:
 
 1. The median per-location MAE difference is negative, meaning the model is better at the typical location.
 2. The win rate exceeds 50 percent, meaning a strict majority of locations see an improvement.
@@ -111,7 +109,7 @@ Weighted Absolute Percentage Error (WAPE) uses only positive-actual rows in the 
 
 ## Results
 
-Benchmark run: March 2026. Up to 300 locations were sampled; after eligibility filtering, 161 locations remained in the daily pipeline and 213 in the interval pipeline.
+Benchmark run: March 2026. Up to 300 locations were sampled. After data density eligibility filtering, 161 locations remained in the daily pipeline and 213 in the interval pipeline.
 
 ### Daily (7-day horizon, 105-week training history)
 
@@ -227,7 +225,7 @@ The key joins are:
 - A sales actuals table, containing daily or interval-level actual sales.
 - A precomputed outlier flags table, containing IS_OUTLIER and OUTLIER_EXCLUSION_REASON per location-day.
 
-If your system does not have outlier flags, set `IS_OUTLIER = FALSE` for all rows; the pipeline will then train on all available history.
+If your data does not have outlier flag labels, set `IS_OUTLIER = FALSE` for all rows. The pipeline will then train on all available history.
 
 ### Baseline
 
