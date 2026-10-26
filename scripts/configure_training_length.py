@@ -8,33 +8,21 @@ import warnings
 from datetime import datetime
 from pathlib import Path
 
-import matplotlib
-
-matplotlib.use("Agg")
-import matplotlib.pyplot as plt
 import pandas as pd
 
+from core.evaluation import compute_metrics, compute_statistical_tests, compute_win_loss
 from core.paths import PROJECT_ROOT
+from core.preprocessing import add_calendar_features, add_fourier_features, create_train_test_split
 from daily import config
 from daily.data_loader import (
     build_actuals,
     build_baseline_variants,
     determine_anchor_date,
+    drop_outlier_days,
     load_daily_actual_vs_forecast,
 )
-from daily.evaluation import (
-    compute_metrics,
-    compute_statistical_tests,
-    compute_win_loss,
-)
 from daily.models import run_mlforecast, run_statsforecast
-from daily.data_loader import drop_outlier_days
-from daily.preprocessing import (
-    add_calendar_features,
-    add_fourier_features,
-    create_train_test_split,
-    fill_missing_dates,
-)
+from daily.preprocessing import fill_missing_dates
 from reporting.constants import MODEL_COLORS
 
 ABLATION_DIR = PROJECT_ROOT / "data" / "metrics" / "ablation"
@@ -66,7 +54,8 @@ def parse_args() -> argparse.Namespace:
         "--data-path",
         type=str,
         default=None,
-        help="Override path to daily_actual_vs_forecast.csv (default: data/input/daily_actual_vs_forecast.csv)",
+        help="Override path to daily_actual_vs_forecast.csv "
+        "(default: data/input/daily_actual_vs_forecast.csv)",
     )
     parser.add_argument(
         "--test-windows",
@@ -392,6 +381,11 @@ def _build_chart(
     output_path: Path,
 ) -> None:
     """Render the two-panel MAE-and-win-rate-vs-training-history chart (fixed pool)."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
     fixed = summary_df[summary_df["pool_type"] == "fixed"].copy()
     checkpoints = sorted(fixed["training_weeks"].unique())
 
@@ -403,7 +397,8 @@ def _build_chart(
         gridspec_kw={"hspace": 0.35},
     )
     fig.suptitle(
-        "Forecast accuracy vs training history length\n(fixed location pool; location set held constant)",
+        "Forecast accuracy vs training history length\n"
+        "(fixed location pool; location set held constant)",
         fontsize=12,
     )
 

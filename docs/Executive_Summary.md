@@ -211,7 +211,7 @@ Before training, the pipeline standardizes data across all models:
 
 1. Missing period handling: gaps are filled with zero sales, treating them as closure days. These rows are used for training but are excluded from accuracy measurement.
 
-2. Outlier protection: extreme sales values, above the 99th percentile per location, are capped to prevent distortion. Caps are calculated from training data only; test data never influences training.
+2. Outlier protection: days the production system flagged as outliers are dropped from training, mirroring production. No statistical threshold is applied.
 
 3. Calendar awareness: models receive features for weekends, federal holidays, and month boundaries so they can recognize calendar patterns.
 
@@ -281,4 +281,4 @@ Next steps:
 
    Method: hold the test window fixed and re-run the benchmark at progressively shorter training lengths (for example, 26, 52, 78, and 104 weeks). For each length, record the win rate and MAE improvement vs. `Baseline_Production` for MSTL and AutoETS. The minimum viable length is where the win rate drops below a defined threshold (for example, no longer statistically significant, or win rate falls below 60 percent).
 
-   Implementation: the `create_train_test_split` function in `daily/preprocessing.py` already accepts `max_train_history_weeks` as a parameter. Adding a `--train-history-weeks` CLI flag to `daily/run.py` is all that is needed to run this experiment. Results will vary by location: some locations may beat the baseline at 52 weeks while others require 78. The output should therefore report per-length win rates rather than a single global threshold.
+   Implementation: the `create_train_test_split` function in `core/preprocessing.py` already accepts `max_train_history_weeks` as a parameter. Adding a `--train-history-weeks` CLI flag to `daily/run.py` is all that is needed to run this experiment. Results will vary by location: some locations may beat the baseline at 52 weeks while others require 78. The output should therefore report per-length win rates rather than a single global threshold.

@@ -10,62 +10,10 @@ try:
 except ImportError:
     holidays_lib = None
 
-from core.preprocessing import create_train_test_split, fill_missing_timesteps  # noqa: F401
+from core.preprocessing import fill_missing_timesteps
 from . import config
 
 logger = logging.getLogger(__name__)
-
-
-def clip_outliers(
-    nixtla_df: pd.DataFrame,
-    percentile: float = config.CLIP_OUTLIER_PERCENTILE,
-    caps: dict[str, float] | None = None,
-    vsd_hours: dict[str, int] | None = None,
-) -> tuple[pd.DataFrame, dict[str, float]]:
-    """Percentile-based outlier handling for ad hoc use; the main pipeline drops
-    flagged days at load time instead.
-
-    Zeros every interval in any business day whose total exceeds the per-location
-    cap; ``vsd_hours`` keeps the boundaries aligned with business days. Pass
-    ``caps`` from training to apply without leakage.
-    """
-    result = nixtla_df.copy()
-    result[config.NIXTLA_Y] = result[config.NIXTLA_Y].clip(lower=0.0)
-
-    if vsd_hours:
-        uid_vsd = result[config.NIXTLA_UNIQUE_ID].map(vsd_hours).fillna(0).astype(int)
-        cal_dates = result[config.NIXTLA_DS].dt.normalize()
-        before_vsd = (uid_vsd > 0) & (result[config.NIXTLA_DS].dt.hour < uid_vsd)
-        biz_day_col = cal_dates.where(~before_vsd, cal_dates - pd.Timedelta(days=1))
-    else:
-        biz_day_col = result[config.NIXTLA_DS].dt.normalize()
-
-    if caps is None:
-        daily_totals = result.groupby([config.NIXTLA_UNIQUE_ID, biz_day_col])[
-            config.NIXTLA_Y
-        ].transform("sum")
-        caps = (
-            result.assign(_daily_total=daily_totals)
-            .groupby(config.NIXTLA_UNIQUE_ID)["_daily_total"]
-            .quantile(percentile / 100.0)
-            .to_dict()
-        )
-
-    result["_biz_day"] = biz_day_col
-
-    def _zero_outlier_day_intervals(group: pd.DataFrame) -> pd.DataFrame:
-        cap = caps.get(group[config.NIXTLA_UNIQUE_ID].iloc[0])
-        if cap is None or cap <= 0:
-            return group
-        group = group.copy()
-        day_totals = group.groupby("_biz_day")[config.NIXTLA_Y].transform("sum")
-        group.loc[day_totals > cap, config.NIXTLA_Y] = 0.0
-        return group
-
-    result = result.groupby(config.NIXTLA_UNIQUE_ID, group_keys=False).apply(
-        _zero_outlier_day_intervals
-    )
-    return result.drop(columns=["_biz_day"]).reset_index(drop=True), caps
 
 
 def fill_missing_intervals(nixtla_df: pd.DataFrame) -> pd.DataFrame:

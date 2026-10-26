@@ -56,9 +56,13 @@ MODEL_DESCRIPTIONS: dict[str, str] = {
     "DOT_D": "Dynamic Optimised Theta; ensemble of Theta models with optimal damping.",
     "LightGBM_D_Fast": "LightGBM with shallow trees; lowest latency, reduced accuracy.",
     "LightGBM_D_Standard": "LightGBM with balanced tree depth and learning rate.",
-    "LightGBM_D_Accuracy": "LightGBM with deeper trees and slow learning rate for maximum accuracy.",
+    "LightGBM_D_Accuracy": (
+        "LightGBM with deeper trees and slow learning rate for maximum accuracy."
+    ),
     "SeasonalNaive": "Repeats the corresponding 15-min slot from the previous week.",
-    "MSTL": "Multi-Seasonal Trend decomposition with daily (96-slot) and weekly (672-slot) seasons.",
+    "MSTL": (
+        "Multi-Seasonal Trend decomposition with daily (96-slot) and weekly (672-slot) seasons."
+    ),
     "AutoETS": "Automatic ETS with 96-slot daily seasonality.",
     "LightGBM_Fast": "LightGBM with Fourier features; low-latency interval model.",
     "LightGBM_Standard": "LightGBM with Fourier features; balanced depth interval model.",
@@ -67,9 +71,22 @@ MODEL_DESCRIPTIONS: dict[str, str] = {
     "Baseline_Adjusted_Draft": "Baseline projection plus manager draft adjustment.",
     "Baseline_Adjusted_Published": "Baseline projection plus published manager adjustment.",
     "Baseline_ManagerOnly_Draft": "Rows where the manager manually authored a draft projection.",
-    "Baseline_ManagerOnly_Published": "Rows where the manager manually authored a published projection.",
-    "Baseline_Production_Strict": "The same Baseline forecast as Baseline Production, but graded on more days, including days where Baseline produced a $0 projection. On an operating day, a $0 forecast is almost always wrong. The standard Baseline Production skips those days when calculating accuracy; this version includes them. The lower accuracy score reflects a broader grading scope, not a different or weaker forecast.",
-    "Baseline_Adjusted_Draft_Strict": "The same forecast as Baseline Adj. Draft, graded on all days including $0-projection days. See Baseline Production (Strict); the same caveat applies. Higher error reflects more difficult days being counted, not a change in how the forecast is built.",
+    "Baseline_ManagerOnly_Published": (
+        "Rows where the manager manually authored a published projection."
+    ),
+    "Baseline_Production_Strict": (
+        "The same Baseline forecast as Baseline Production, but graded on more days, "
+        "including days where Baseline produced a $0 projection. On an operating day, "
+        "a $0 forecast is almost always wrong. The standard Baseline Production skips "
+        "those days when calculating accuracy; this version includes them. The lower "
+        "accuracy score reflects a broader grading scope, not a different or weaker forecast."
+    ),
+    "Baseline_Adjusted_Draft_Strict": (
+        "The same forecast as Baseline Adj. Draft, graded on all days including "
+        "$0-projection days. See Baseline Production (Strict); the same caveat applies. "
+        "Higher error reflects more difficult days being counted, not a change in how "
+        "the forecast is built."
+    ),
 }
 
 METRIC_DEFINITIONS: dict[str, str] = {
@@ -87,15 +104,17 @@ METRIC_DEFINITIONS: dict[str, str] = {
     ),
     "Weighted Absolute Percentage Error (WAPE)": (
         "Total forecast error as a share of total actual sales across the evaluation period. "
-        "A WAPE of 10% means that, in aggregate, the forecast missed by 10 cents for every dollar of real sales. "
-        "High-revenue days naturally carry more weight, so a single bad day at a busy location matters more "
-        "than several small misses at quiet ones. More reliable than MAPE when sales volumes vary widely. "
+        "A WAPE of 10% means that, in aggregate, the forecast missed by 10 cents for every "
+        "dollar of real sales. High-revenue days naturally carry more weight, so a single "
+        "bad day at a busy location matters more than several small misses at quiet ones. "
+        "More reliable than MAPE when sales volumes vary widely. "
         "Lower is better."
     ),
     "Root Mean Squared Error (RMSE)": (
         "Similar to MAE, but large individual misses are penalized more heavily. "
         "A forecast that is off by $400 once will push RMSE higher than four separate $100 misses, "
-        "which makes it a useful signal for catching occasional large errors that MAE might understate. "
+        "which makes it a useful signal for catching occasional large errors that MAE "
+        "might understate. "
         "Expressed in dollars. Lower is better."
     ),
 }

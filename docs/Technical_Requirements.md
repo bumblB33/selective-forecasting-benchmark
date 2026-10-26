@@ -123,7 +123,7 @@ All metrics are computed per location, then summarized as a mean or median.
 The pipelines apply two business-logic assumptions before model training:
 
 1. Closed-day assumption: missing dates or intervals are filled with `y = 0.0`, treating gaps as periods when a location was closed.
-2. Outlier clipping: target values are capped at the 99.0th percentile per location (`CLIP_OUTLIER_PERCENTILE = 99.0` in both [daily/config.py](../daily/config.py) and [interval/config.py](../interval/config.py)). Caps are learned from training data only and applied identically to the train and test sets, which prevents leakage.
+2. Outlier exclusion: days flagged `IS_OUTLIER` by the production system are dropped from training (`drop_outlier_days` in each data loader).
 
 ---
 
@@ -323,7 +323,7 @@ Each pipeline's data loader validates the Snowflake contract, coerces types, and
 | `load_daily_actual_vs_forecast()` | Reads `daily_actual_vs_forecast.csv`, validates all 10 expected columns, and coerces types (`ENTITY_UID` to string, `DAY_START_TIME` to datetime, booleans for manager flags). Strips whitespace from `ENTITY_UID` and normalizes dates to midnight. |
 | `build_baseline_variants()` | Constructs 7 baseline variants by combining `PROJECTION`, `USER_ADJUSTMENT`, and `PUBLISHED_USER_ADJUSTMENT`. Filters on `PROJECTION > 0` for default variants; strict variants retain zeros. Manager-only variants additionally filter on `IS_GENERATED_BY_MANAGER = True`. Each variant is renamed to `[unique_id, ds, y]`. |
 | `build_actuals()` | Maps `[ENTITY_UID, DAY_START_TIME, ACTUAL_VALUE]` to `[unique_id, ds, y]`. Zero-actual rows are preserved; filtering is deferred to the evaluation config. |
-| `filter_eligible_locations()` | Returns composite UIDs with non-null actuals and `PROJECTION > 0`, requiring at least `TARGET_LOCATION_COUNT // 10` (30) distinct days per location. This is a lightweight Python-side guard; primary eligibility filtering happens in SQL. |
+| `drop_outlier_days()` | Removes training rows whose `(ENTITY_UID, DAY_START_TIME)` is flagged `IS_OUTLIER = True` in the extract. NULL flags are treated as False. |
 
 [interval/data_loader.py](../interval/data_loader.py)
 

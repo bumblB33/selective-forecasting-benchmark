@@ -127,7 +127,8 @@ def _compare_dataframes(name: str, df_a: pd.DataFrame, df_b: pd.DataFrame) -> in
                 bad_idx = int(np.where(all_exceeded)[0][0])
                 n_bad = int(exceeded.sum())
                 logger.error(
-                    "[%s] Column '%s': max_diff=%.2e (rel=%.2e) > tolerances atol=%.0e rtol=%.0e in %d rows "
+                    "[%s] Column '%s': max_diff=%.2e (rel=%.2e) > tolerances "
+                    "atol=%.0e rtol=%.0e in %d rows "
                     "(first bad row index: %d)",
                     name,
                     col,

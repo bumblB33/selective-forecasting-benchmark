@@ -131,15 +131,15 @@ an overview of how the production system selects and applies models.
 
 ## Preprocessing Details
 
-### Outlier Clipping
+### Outlier Day Exclusion
 
-Negative values are first zeroed. For the daily pipeline, any individual day
-whose value exceeds the per-location 99th-percentile threshold is set to zero. The
-value is not capped; the whole day is excluded, which mirrors the baseline's
-`IsOutlier` day-exclusion behavior. For the interval pipeline, the same logic operates
-at the business-day level: all 15-minute intervals on an outlier day are zeroed
-together. Per-location thresholds are derived from training data only, stored in a
-`caps` dictionary, and reapplied to evaluation data to prevent leakage.
+Days flagged `IS_OUTLIER` in the extract are dropped from the training data by
+`drop_outlier_days`, which mirrors the baseline's day-exclusion behavior. The rows are
+removed, not zeroed, because a zero row would read as a closed day. A NULL flag is
+treated as not an outlier. The daily pipeline drops the flagged `(location, day)` rows.
+The interval pipeline drops every 15-minute interval in a flagged business day, using
+the same business-day boundaries as the fallback interval fill. No statistical
+threshold is applied.
 
 ### Missing Interval Filling
 
@@ -189,10 +189,8 @@ Key structural differences between the benchmark and the production system:
 - Granularity of training: the benchmark trains on daily aggregates (`daily/`) or on
   raw 15-minute intervals (`interval/`). The production system always operates at
   15-minute granularity internally; daily totals are derived by summing intervals.
-- Outlier handling: the benchmark zeros out outlier days at the 99th-percentile
-  threshold (configured as `CLIP_OUTLIER_PERCENTILE = 99.0` in both `daily/config.py`
-  and `interval/config.py`) per location. The production system does not apply a
-  statistical clipping step; it relies on data-quality controls upstream.
+- Outlier handling: the benchmark drops training days the production system
+  flagged as `IS_OUTLIER`, mirroring production.
 - Manager adjustments: the benchmark evaluates `USER_ADJUSTMENT` and
   `PUBLISHED_USER_ADJUSTMENT` as separate baseline variants (`Baseline_Adjusted_*`).
   The production system stores these as manager-authored edits on top of the algorithmic

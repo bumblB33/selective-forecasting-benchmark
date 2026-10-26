@@ -10,14 +10,9 @@ from pathlib import Path
 import pandas as pd
 
 from core.paths import PROJECT_ROOT
+from core.evaluation import build_volume_tiers
 from daily import config as daily_config
-from daily.evaluation import (
-    build_volume_tiers as daily_build_volume_tiers,
-)
 from interval import config as interval_config
-from interval.evaluation import (
-    build_volume_tiers as interval_build_volume_tiers,
-)
 from reporting.report import ReportContext, build_report
 
 from .utils import find_latest_timestamp
@@ -47,13 +42,15 @@ def parse_args() -> argparse.Namespace:
         "--prefix",
         type=str,
         default="",
-        help="File prefix override (e.g. 'daily_w2_'). Defaults to the standard prefix for the interval.",
+        help="File prefix override (e.g. 'daily_w2_'). "
+        "Defaults to the standard prefix for the interval.",
     )
     parser.add_argument(
         "--timestamp",
         type=str,
         default="",
-        help="Exact timestamp string to use (e.g. '2024_01_15_14_30'). Skips auto-detection when provided.",
+        help="Exact timestamp string to use (e.g. '2024_01_15_14_30'). "
+        "Skips auto-detection when provided.",
     )
     return parser.parse_args()
 
@@ -72,11 +69,9 @@ def main() -> None:
 
     if args.interval == "daily":
         config = daily_config
-        build_volume_tiers = daily_build_volume_tiers
         default_prefix = "daily_"
     else:
         config = interval_config
-        build_volume_tiers = interval_build_volume_tiers
         default_prefix = "interval_"
 
     prefix = args.prefix if args.prefix else default_prefix

@@ -242,7 +242,8 @@ def aggregate_metric_bar_chart(
 
     dollar = metric in ("MAE", "RMSE")
     ax.set_xlabel(
-        f"Average forecast error, {metric} {'($, lower is more accurate)' if dollar else '(lower is more accurate)'}",
+        f"Average forecast error, {metric} "
+        f"{'($, lower is more accurate)' if dollar else '(lower is more accurate)'}",
         fontsize=10,
     )
     ax.set_title(
@@ -534,7 +535,8 @@ def cv_metric_chart(cv_metrics_df: pd.DataFrame, metric: str = "MAE") -> str:
         )
 
     ax.set_xlabel(
-        f"Cross-validation {metric} {'($, lower is more consistent)' if dollar else '(lower is more consistent)'}",
+        f"Cross-validation {metric} "
+        f"{'($, lower is more consistent)' if dollar else '(lower is more consistent)'}",
         fontsize=10,
     )
     ax.set_title(

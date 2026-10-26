@@ -1,3 +1,4 @@
+import importlib
 from pathlib import Path
 
 import pandas as pd
@@ -87,7 +88,9 @@ class TestWAPEDenominatorBehavior:
         standard_wape3 = (actuals3 - predictions3).abs().sum() / actuals3.sum()
 
         pos_mask = actuals3 > 0
-        our_wape3 = (actuals3[pos_mask] - predictions3[pos_mask]).abs().sum() / actuals3[pos_mask].sum()
+        our_wape3 = (
+            (actuals3[pos_mask] - predictions3[pos_mask]).abs().sum() / actuals3[pos_mask].sum()
+        )
 
         assert standard_wape3 == 1.60
         assert our_wape3 == 0.10
@@ -160,6 +163,23 @@ class TestMetricNamingConventions:
             f"core.evaluation._METRICS has diverged from the expected set. "
             f"Found: {set(_METRICS)}. Expected: {expected_metrics}."
         )
+
+
+class TestPipelineModulesImport:
+    """Pipeline modules import `core/` directly, so a removed re-export surfaces here."""
+
+    @pytest.mark.parametrize(
+        "module_name",
+        [
+            "daily.run",
+            "interval.run",
+            "scripts.regenerate_report",
+            "scripts.configure_training_length",
+            "scripts.parity_check",
+        ],
+    )
+    def test_entry_point_imports(self, module_name):
+        importlib.import_module(module_name)
 
 
 if __name__ == "__main__":

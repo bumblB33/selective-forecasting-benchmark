@@ -16,7 +16,7 @@ _EXPECTED_INTERVAL_ACTUAL_VS_FORECAST_COLUMNS = {
     config.COL_INTERVAL_ID_TICKS,
     config.COL_INTERVAL_START_TS,
     config.COL_NET_SALES,
-    config.COL_Baseline_PROJECTION,
+    config.COL_BASELINE_PROJECTION,
     config.COL_USER_ADJUSTMENT,
     config.COL_PUBLISHED_USER_ADJUSTMENT,
     config.COL_IS_CLOSED,
@@ -47,7 +47,7 @@ def load_interval_actual_vs_forecast(path: str | Path | None = None) -> pd.DataF
             config.COL_SITE_ID: str,
             config.COL_INTERVAL_ID_TICKS: "Int64",
             config.COL_NET_SALES: float,
-            config.COL_Baseline_PROJECTION: float,
+            config.COL_BASELINE_PROJECTION: float,
             config.COL_USER_ADJUSTMENT: float,
             config.COL_PUBLISHED_USER_ADJUSTMENT: float,
             config.COL_IS_CLOSED: "boolean",
@@ -62,8 +62,10 @@ def load_interval_actual_vs_forecast(path: str | Path | None = None) -> pd.DataF
     missing_columns = _EXPECTED_INTERVAL_ACTUAL_VS_FORECAST_COLUMNS - set(interval_df.columns)
     if missing_columns:
         raise ValueError(
-            f"interval_actual_vs_forecast.csv is missing expected columns: {sorted(missing_columns)}\n"
-            "Re-run snowflake/interval_actual_vs_forecast.sql and save the output to data/input/interval_actual_vs_forecast.csv"
+            "interval_actual_vs_forecast.csv is missing expected columns: "
+            f"{sorted(missing_columns)}\n"
+            "Re-run snowflake/interval_actual_vs_forecast.sql and save the output to "
+            "data/input/interval_actual_vs_forecast.csv"
         )
 
     absent_optional = _OPTIONAL_INTERVAL_ACTUAL_VS_FORECAST_COLUMNS - set(interval_df.columns)
@@ -108,7 +110,7 @@ def load_interval_actual_vs_forecast(path: str | Path | None = None) -> pd.DataF
         )
 
     location_count = interval_df[config.COL_ENTITY_UID].nunique()
-    test_row_count = interval_df[config.COL_Baseline_PROJECTION].notna().sum()
+    test_row_count = interval_df[config.COL_BASELINE_PROJECTION].notna().sum()
     logger.info(
         "Loaded %d rows, %d locations, %d test-period rows",
         len(interval_df),
@@ -122,11 +124,13 @@ def determine_test_window(
     interval_df: pd.DataFrame,
 ) -> tuple[pd.Timestamp, pd.Timestamp]:
     """One-week test window ending at the last projected interval in the extract."""
-    projected_rows = interval_df[interval_df[config.COL_Baseline_PROJECTION].notna()]
+    projected_rows = interval_df[interval_df[config.COL_BASELINE_PROJECTION].notna()]
     if projected_rows.empty:
         raise ValueError(
-            "No baseline projections found in interval_actual_vs_forecast.csv; cannot determine test window. "
-            "Re-run snowflake/interval_actual_vs_forecast.sql and save the output to data/input/interval_actual_vs_forecast.csv"
+            "No baseline projections found in interval_actual_vs_forecast.csv; "
+            "cannot determine test window. "
+            "Re-run snowflake/interval_actual_vs_forecast.sql and save the output to "
+            "data/input/interval_actual_vs_forecast.csv"
         )
     test_end = pd.Timestamp(projected_rows[config.COL_INTERVAL_START_TS].max())
     test_start = test_end - pd.Timedelta(weeks=config.TEST_PERIOD_WEEKS) + pd.Timedelta(minutes=15)
@@ -146,7 +150,7 @@ def build_baseline_variants(test_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     them so the cost of zero-forecast-vs-positive-actual is reflected in
     accuracy. Adjusted variants layer manager or published adjustments on top.
     """
-    test_df = test_df[test_df[config.COL_Baseline_PROJECTION].notna()].copy()
+    test_df = test_df[test_df[config.COL_BASELINE_PROJECTION].notna()].copy()
     adjusted_draft_column = "_adjusted_draft"
     adjusted_published_column = "_adjusted_published"
 
@@ -163,24 +167,29 @@ def build_baseline_variants(test_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
             .reset_index(drop=True)
         )
 
-    test_df[adjusted_draft_column] = test_df[config.COL_Baseline_PROJECTION].fillna(0.0) + test_df[
-        config.COL_USER_ADJUSTMENT
-    ].fillna(0.0)
-    test_df[adjusted_published_column] = test_df[config.COL_Baseline_PROJECTION].fillna(0.0) + test_df[
-        config.COL_PUBLISHED_USER_ADJUSTMENT
-    ].fillna(0.0)
+    baseline_projection = test_df[config.COL_BASELINE_PROJECTION].fillna(0.0)
+    test_df[adjusted_draft_column] = (
+        baseline_projection + test_df[config.COL_USER_ADJUSTMENT].fillna(0.0)
+    )
+    test_df[adjusted_published_column] = (
+        baseline_projection + test_df[config.COL_PUBLISHED_USER_ADJUSTMENT].fillna(0.0)
+    )
 
     if config.EXCLUDE_ZERO_PROJECTION_FROM_EVAL:
-        baseline_filter = test_df[config.COL_Baseline_PROJECTION] > 0
+        baseline_filter = test_df[config.COL_BASELINE_PROJECTION] > 0
     else:
         baseline_filter = pd.Series([True] * len(test_df), index=test_df.index)
 
     return {
-        config.Baseline_PRODUCTION: _to_nixtla(test_df[baseline_filter], config.COL_Baseline_PROJECTION),
-        config.Baseline_ADJUSTED_DRAFT: _to_nixtla(test_df[baseline_filter], adjusted_draft_column),
-        config.Baseline_ADJUSTED_PUBLISHED: _to_nixtla(test_df[baseline_filter], adjusted_published_column),
-        config.Baseline_PRODUCTION_STRICT: _to_nixtla(test_df, config.COL_Baseline_PROJECTION),
-        config.Baseline_ADJUSTED_DRAFT_STRICT: _to_nixtla(test_df, adjusted_draft_column),
+        config.BASELINE_PRODUCTION: _to_nixtla(
+            test_df[baseline_filter], config.COL_BASELINE_PROJECTION
+        ),
+        config.BASELINE_ADJUSTED_DRAFT: _to_nixtla(test_df[baseline_filter], adjusted_draft_column),
+        config.BASELINE_ADJUSTED_PUBLISHED: _to_nixtla(
+            test_df[baseline_filter], adjusted_published_column
+        ),
+        config.BASELINE_PRODUCTION_STRICT: _to_nixtla(test_df, config.COL_BASELINE_PROJECTION),
+        config.BASELINE_ADJUSTED_DRAFT_STRICT: _to_nixtla(test_df, adjusted_draft_column),
     }
 
 
@@ -194,7 +203,10 @@ def build_actuals(
     """
     subset = test_df
     if config.EXCLUDE_ZERO_PROJECTION_FROM_EVAL:
-        subset = test_df[(test_df[config.COL_Baseline_PROJECTION].notna()) & (test_df[config.COL_Baseline_PROJECTION] > 0)]
+        subset = test_df[
+            test_df[config.COL_BASELINE_PROJECTION].notna()
+            & (test_df[config.COL_BASELINE_PROJECTION] > 0)
+        ]
 
     return (
         subset[
@@ -225,7 +237,7 @@ def build_actuals_strict(
     evaluating against filtered actuals would silently drop those rows on merge
     and collapse strict and standard into identical results.
     """
-    subset = test_df[test_df[config.COL_Baseline_PROJECTION].notna()]
+    subset = test_df[test_df[config.COL_BASELINE_PROJECTION].notna()]
     return (
         subset[
             [
@@ -248,7 +260,9 @@ def build_actuals_strict(
 def summarize_actual_vs_forecast_data(interval_df: pd.DataFrame, location_ids: list[str]) -> dict:
     """Coverage summary (counts, date range, median intervals/location) for logging."""
     location_subset = interval_df[interval_df[config.COL_ENTITY_UID].isin(location_ids)]
-    intervals_per_location = location_subset.groupby(config.COL_ENTITY_UID)[config.COL_INTERVAL_START_TS].nunique()
+    intervals_per_location = location_subset.groupby(config.COL_ENTITY_UID)[
+        config.COL_INTERVAL_START_TS
+    ].nunique()
     return {
         "n_locations": len(location_ids),
         "n_rows": len(location_subset),
@@ -269,7 +283,9 @@ def build_vsd_hours_lookup(actual_vs_forecast_df: pd.DataFrame) -> dict[str, int
     if config.COL_BUSINESS_START_HOUR_UTC not in actual_vs_forecast_df.columns:
         return {}
 
-    grouped = actual_vs_forecast_df.groupby(config.COL_ENTITY_UID)[config.COL_BUSINESS_START_HOUR_UTC]
+    grouped = actual_vs_forecast_df.groupby(config.COL_ENTITY_UID)[
+        config.COL_BUSINESS_START_HOUR_UTC
+    ]
 
     distinct_counts = grouped.nunique()
     mixed_locations = distinct_counts[distinct_counts > 1].index.tolist()
@@ -277,7 +293,9 @@ def build_vsd_hours_lookup(actual_vs_forecast_df: pd.DataFrame) -> dict[str, int
         modes_per_location = grouped.apply(
             lambda s: s.dropna().mode() if not s.dropna().empty else pd.Series(dtype=int)
         )
-        tied_locations = [uid for uid, mode_series in modes_per_location.items() if len(mode_series) > 1]
+        tied_locations = [
+            uid for uid, mode_series in modes_per_location.items() if len(mode_series) > 1
+        ]
         if tied_locations:
             raise ValueError(
                 f"{len(tied_locations)} location(s) have a 50/50 split in BUSINESS_START_HOUR_UTC "
@@ -332,7 +350,9 @@ def fill_fallback_intervals(
     ts_col = config.COL_INTERVAL_START_TS
 
     actual_vs_forecast_work = actual_vs_forecast_df.copy()
-    actual_vs_forecast_work["_vsd"] = actual_vs_forecast_work[uid_col].map(vsd_hours).fillna(0).astype(int)
+    actual_vs_forecast_work["_vsd"] = (
+        actual_vs_forecast_work[uid_col].map(vsd_hours).fillna(0).astype(int)
+    )
     actual_vs_forecast_work["_biz_day"] = _business_day_series(
         actual_vs_forecast_work[ts_col], actual_vs_forecast_work["_vsd"]
     )
@@ -371,8 +391,11 @@ def fill_fallback_intervals(
 
     nixtla_work = nixtla_df.copy()
     nixtla_work["_vsd"] = nixtla_work[config.NIXTLA_UNIQUE_ID].map(vsd_hours).fillna(0).astype(int)
-    nixtla_work["_biz_day"] = _business_day_series(nixtla_work[config.NIXTLA_DS], nixtla_work["_vsd"])
-    nixtla_work["_slot"] = nixtla_work[config.NIXTLA_DS].dt.hour * 4 + nixtla_work[config.NIXTLA_DS].dt.minute // 15
+    nixtla_work["_biz_day"] = _business_day_series(
+        nixtla_work[config.NIXTLA_DS], nixtla_work["_vsd"]
+    )
+    timestamps = nixtla_work[config.NIXTLA_DS].dt
+    nixtla_work["_slot"] = timestamps.hour * 4 + timestamps.minute // 15
     nixtla_work["_dow"] = pd.to_datetime(nixtla_work["_biz_day"]).dt.dayofweek
 
     nixtla_work = nixtla_work.merge(
@@ -382,13 +405,15 @@ def fill_fallback_intervals(
     )
     fallback_mask = nixtla_work["_daily_total"].notna()
 
-    nixtla_work["_day_total"] = nixtla_work.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])[config.NIXTLA_Y].transform(
-        "sum"
-    )
+    nixtla_work["_day_total"] = nixtla_work.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])[
+        config.NIXTLA_Y
+    ].transform("sum")
 
     share_base = nixtla_work[~fallback_mask & (nixtla_work["_day_total"] > 0)].copy()
     share_base["_share"] = share_base[config.NIXTLA_Y] / share_base["_day_total"]
-    avg_shares = share_base.groupby([config.NIXTLA_UNIQUE_ID, "_dow", "_slot"])["_share"].mean().to_dict()
+    avg_shares = (
+        share_base.groupby([config.NIXTLA_UNIQUE_ID, "_dow", "_slot"])["_share"].mean().to_dict()
+    )
 
     fallback_rows = nixtla_work[fallback_mask].copy()
 
@@ -401,8 +426,14 @@ def fill_fallback_intervals(
         )
     ]
 
-    share_sums = fallback_rows.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])["_share"].transform("sum").replace(0, 1.0)
-    fallback_rows[config.NIXTLA_Y] = fallback_rows["_daily_total"] * fallback_rows["_share"] / share_sums
+    share_sums = (
+        fallback_rows.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])["_share"]
+        .transform("sum")
+        .replace(0, 1.0)
+    )
+    fallback_rows[config.NIXTLA_Y] = (
+        fallback_rows["_daily_total"] * fallback_rows["_share"] / share_sums
+    )
 
     nixtla_work.loc[fallback_mask, config.NIXTLA_Y] = fallback_rows[config.NIXTLA_Y].values
 
@@ -503,7 +534,9 @@ def drop_outlier_days(
     if vsd_hours:
         uid_vsd = nixtla_df[config.NIXTLA_UNIQUE_ID].map(vsd_hours).fillna(0).astype(int)
         before_vsd = (uid_vsd > 0) & (timestamps.dt.hour < uid_vsd)
-        interval_business_days = calendar_dates.where(~before_vsd, calendar_dates - pd.Timedelta(days=1))
+        interval_business_days = calendar_dates.where(
+            ~before_vsd, calendar_dates - pd.Timedelta(days=1)
+        )
     else:
         interval_business_days = calendar_dates
 
