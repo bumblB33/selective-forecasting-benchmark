@@ -18,7 +18,6 @@ configuration values as function arguments; `core/` never reads configuration di
 
 Pipeline modules (`daily/` and `interval/`) may import from `core/` freely. `core/` may not import
 from any pipeline module. Pipeline modules import `core/` functions directly; they do not re-export them.
-A pipeline module holds only frequency-specific wrappers such as `daily/preprocessing.py::fill_missing_dates`.
 
 The constraint is enforced by `tests/test_architecture_constraints.py::TestCoreModulePipelineAgnostic`.
 
@@ -26,8 +25,6 @@ The constraint is enforced by `tests/test_architecture_constraints.py::TestCoreM
 
 - Adding a new shared function requires placing it in `core/` and updating callers to pass configuration values.
 - Pipeline-specific behavior is encoded at the call site, not inside the shared function.
-- Callers import shared functions from `core/` directly. `daily/evaluation.py` and
-  `interval/evaluation.py` were removed because they only re-exported `core.evaluation`.
 - `core/preprocessing.py::add_fourier_features()` uses default parameter values that reflect daily
   pipeline conventions (105-week history, daily frequency). Interval callers must explicitly override
   these defaults. The `create_train_test_split()` default of `max_train_history_weeks=105` is the

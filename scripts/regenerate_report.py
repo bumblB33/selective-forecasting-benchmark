@@ -63,6 +63,14 @@ def _require_file(path: Path) -> Path:
     return path
 
 
+def _read_table(path: Path) -> pd.DataFrame:
+    """Read a metrics CSV, returning an empty frame for a table the run left empty."""
+    try:
+        return pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame()
+
+
 def main() -> None:
     """Rebuild an HTML report from persisted CSVs, skipping model retraining."""
     args = parse_args()
@@ -118,8 +126,15 @@ def main() -> None:
     predictions_combined = pd.read_csv(predictions_path, parse_dates=[config.NIXTLA_DS])
     location_metrics_combined = pd.read_csv(location_metrics_path)
     aggregate_metrics_combined = pd.read_csv(aggregate_metrics_path)
-    win_loss_df = pd.read_csv(win_loss_path)
-    statistical_tests_df = pd.read_csv(statistical_tests_path)
+    win_loss_df = _read_table(win_loss_path)
+    if win_loss_df.empty:
+        logger.error(
+            "%s is empty. Runs without a production baseline, such as gross_sales, "
+            "cannot be regenerated.",
+            win_loss_path.name,
+        )
+        sys.exit(1)
+    statistical_tests_df = _read_table(statistical_tests_path)
 
     all_location_metrics: dict[str, pd.DataFrame] = {
         model_name: group.drop(columns=["model"]).reset_index(drop=True)

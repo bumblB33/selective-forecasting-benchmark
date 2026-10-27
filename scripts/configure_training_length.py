@@ -31,17 +31,20 @@ MSTL_YEARLY_MIN_WEEKS = 105
 
 warnings.filterwarnings("ignore")
 
-_log_dir = PROJECT_ROOT / "logs"
-_log_dir.mkdir(exist_ok=True)
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s  %(name)-30s  %(levelname)-7s  %(message)s",
-    handlers=[
-        logging.FileHandler(_log_dir / "ablation.log", mode="w"),
-        logging.StreamHandler(),
-    ],
-)
 logger = logging.getLogger(__name__)
+
+
+def _configure_logging() -> None:
+    log_dir = PROJECT_ROOT / "logs"
+    log_dir.mkdir(exist_ok=True)
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s  %(name)-30s  %(levelname)-7s  %(message)s",
+        handlers=[
+            logging.FileHandler(log_dir / "ablation.log", mode="w"),
+            logging.StreamHandler(),
+        ],
+    )
 
 
 def parse_args() -> argparse.Namespace:
@@ -312,7 +315,11 @@ def run_ablation(
             )
             training_df = drop_outlier_days(training_df, actual_vs_forecast_df)
             training_df, future_fourier_df, fourier_columns = add_fourier_features(
-                training_df
+                training_df,
+                weekly_k=config.FOURIER_WEEKLY_K,
+                yearly_k=config.FOURIER_YEARLY_K,
+                forecast_horizon=config.FORECAST_HORIZON,
+                frequency=config.FREQUENCY,
             )
 
             logger.info(
@@ -524,6 +531,7 @@ def main() -> None:
     full dataset; outlier drops and Fourier features re-run per slice to
     prevent leakage from longer histories.
     """
+    _configure_logging()
     args = parse_args()
     checkpoints = sorted(set(args.checkpoints))
 

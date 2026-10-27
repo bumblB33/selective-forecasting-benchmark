@@ -303,9 +303,7 @@ def _build_aligned_mlforecast_xdf(
             if column not in expected_df.columns and column in future_exog_df.columns
         ]
         if missing_columns:
-            # All series share one future date grid (enforced by fill_missing_dates),
-            # so merging on ds is safe. If endpoints ever diverge, switch to a
-            # per-timestamp build like the interval pipeline.
+            # add_fourier_features asserts a shared end date, so merging on ds alone is safe.
             deduplicated_future_exog = future_exog_df[
                 [config.NIXTLA_DS] + missing_columns
             ].drop_duplicates(subset=[config.NIXTLA_DS])

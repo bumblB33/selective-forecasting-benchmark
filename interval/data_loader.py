@@ -64,7 +64,7 @@ def load_interval_actual_vs_forecast(path: str | Path | None = None) -> pd.DataF
         raise ValueError(
             "interval_actual_vs_forecast.csv is missing expected columns: "
             f"{sorted(missing_columns)}\n"
-            "Re-run snowflake/interval_actual_vs_forecast.sql and save the output to "
+            "Re-run snowflake/interval_avf.sql and save the output to "
             "data/input/interval_actual_vs_forecast.csv"
         )
 
@@ -79,7 +79,7 @@ def load_interval_actual_vs_forecast(path: str | Path | None = None) -> pd.DataF
         if outlier_columns_absent:
             logger.warning(
                 "interval_actual_vs_forecast.csv is missing outlier columns %s. Re-run "
-                "snowflake/interval_actual_vs_forecast.sql to enable production-matching "
+                "snowflake/interval_avf.sql to enable production-matching "
                 "outlier exclusion. Without IS_OUTLIER the benchmark trains on days that "
                 "the production system excludes, making results overly optimistic.",
                 sorted(outlier_columns_absent),
@@ -87,7 +87,7 @@ def load_interval_actual_vs_forecast(path: str | Path | None = None) -> pd.DataF
         if other_columns_absent:
             logger.warning(
                 "interval_actual_vs_forecast.csv is missing optional columns %s. Re-run "
-                "snowflake/interval_actual_vs_forecast.sql to enable business-day-aware "
+                "snowflake/interval_avf.sql to enable business-day-aware "
                 "fallback interval fill. Falling back to calendar-day behavior.",
                 sorted(other_columns_absent),
             )
@@ -129,7 +129,7 @@ def determine_test_window(
         raise ValueError(
             "No baseline projections found in interval_actual_vs_forecast.csv; "
             "cannot determine test window. "
-            "Re-run snowflake/interval_actual_vs_forecast.sql and save the output to "
+            "Re-run snowflake/interval_avf.sql and save the output to "
             "data/input/interval_actual_vs_forecast.csv"
         )
     test_end = pd.Timestamp(projected_rows[config.COL_INTERVAL_START_TS].max())
@@ -167,12 +167,12 @@ def build_baseline_variants(test_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
             .reset_index(drop=True)
         )
 
-    baseline_projection = test_df[config.COL_BASELINE_PROJECTION].fillna(0.0)
     test_df[adjusted_draft_column] = (
-        baseline_projection + test_df[config.COL_USER_ADJUSTMENT].fillna(0.0)
+        test_df[config.COL_BASELINE_PROJECTION] + test_df[config.COL_USER_ADJUSTMENT].fillna(0.0)
     )
     test_df[adjusted_published_column] = (
-        baseline_projection + test_df[config.COL_PUBLISHED_USER_ADJUSTMENT].fillna(0.0)
+        test_df[config.COL_BASELINE_PROJECTION]
+        + test_df[config.COL_PUBLISHED_USER_ADJUSTMENT].fillna(0.0)
     )
 
     if config.EXCLUDE_ZERO_PROJECTION_FROM_EVAL:
@@ -287,15 +287,12 @@ def build_vsd_hours_lookup(actual_vs_forecast_df: pd.DataFrame) -> dict[str, int
         config.COL_BUSINESS_START_HOUR_UTC
     ]
 
+    modes_per_location = {uid: hours.dropna().mode() for uid, hours in grouped}
+
     distinct_counts = grouped.nunique()
     mixed_locations = distinct_counts[distinct_counts > 1].index.tolist()
     if mixed_locations:
-        modes_per_location = grouped.apply(
-            lambda s: s.dropna().mode() if not s.dropna().empty else pd.Series(dtype=int)
-        )
-        tied_locations = [
-            uid for uid, mode_series in modes_per_location.items() if len(mode_series) > 1
-        ]
+        tied_locations = [uid for uid in mixed_locations if len(modes_per_location[uid]) > 1]
         if tied_locations:
             raise ValueError(
                 f"{len(tied_locations)} location(s) have a 50/50 split in BUSINESS_START_HOUR_UTC "
@@ -311,12 +308,7 @@ def build_vsd_hours_lookup(actual_vs_forecast_df: pd.DataFrame) -> dict[str, int
             mixed_locations[:5],
         )
 
-    return (
-        grouped.apply(lambda s: s.dropna().mode().iloc[0] if not s.dropna().empty else None)
-        .dropna()
-        .astype(int)
-        .to_dict()
-    )
+    return {uid: int(modes.iloc[0]) for uid, modes in modes_per_location.items() if len(modes)}
 
 
 def _business_day_series(timestamps: pd.Series, vsd_utc: pd.Series) -> pd.Series:
@@ -505,7 +497,7 @@ def drop_outlier_days(
     if config.COL_IS_OUTLIER not in actual_vs_forecast_df.columns:
         logger.warning(
             "IS_OUTLIER column is absent from the source frame; outlier days will NOT be "
-            "dropped. Re-run snowflake/interval_actual_vs_forecast.sql to fix this."
+            "dropped. Re-run snowflake/interval_avf.sql to fix this."
         )
         return nixtla_df
 
@@ -513,32 +505,24 @@ def drop_outlier_days(
     if not outlier_mask.any():
         return nixtla_df
 
+    business_start_hours = vsd_hours or {}
+
     outlier_timestamps = actual_vs_forecast_df.loc[outlier_mask, config.COL_INTERVAL_START_TS]
     outlier_uids = actual_vs_forecast_df.loc[outlier_mask, config.COL_ENTITY_UID]
-    outlier_calendar_dates = outlier_timestamps.dt.normalize()
-
-    if vsd_hours:
-        outlier_vsd = outlier_uids.map(vsd_hours).fillna(0).astype(int)
-        outlier_before_vsd = (outlier_vsd > 0) & (outlier_timestamps.dt.hour < outlier_vsd)
-        outlier_biz_days = outlier_calendar_dates.where(
-            ~outlier_before_vsd, outlier_calendar_dates - pd.Timedelta(days=1)
+    outlier_business_days: set[tuple] = set(
+        zip(
+            outlier_uids,
+            _business_day_series(
+                outlier_timestamps,
+                outlier_uids.map(business_start_hours).fillna(0).astype(int),
+            ),
         )
-    else:
-        outlier_biz_days = outlier_calendar_dates
+    )
 
-    outlier_business_days: set[tuple] = set(zip(outlier_uids, outlier_biz_days))
-
-    timestamps = nixtla_df[config.NIXTLA_DS]
-    calendar_dates = timestamps.dt.normalize()
-
-    if vsd_hours:
-        uid_vsd = nixtla_df[config.NIXTLA_UNIQUE_ID].map(vsd_hours).fillna(0).astype(int)
-        before_vsd = (uid_vsd > 0) & (timestamps.dt.hour < uid_vsd)
-        interval_business_days = calendar_dates.where(
-            ~before_vsd, calendar_dates - pd.Timedelta(days=1)
-        )
-    else:
-        interval_business_days = calendar_dates
+    interval_business_days = _business_day_series(
+        nixtla_df[config.NIXTLA_DS],
+        nixtla_df[config.NIXTLA_UNIQUE_ID].map(business_start_hours).fillna(0).astype(int),
+    )
 
     keep_mask = ~pd.Series(
         list(

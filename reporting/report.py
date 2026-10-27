@@ -155,11 +155,6 @@ def _df_to_html(
 </table>"""
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
 def _display_name(model_name: str) -> str:
     """Human-readable model label, with the model id as fallback."""
     return MODEL_DISPLAY_NAMES.get(model_name, model_name)
@@ -236,11 +231,6 @@ def _img_tag(base64_encoded_png: str, extra_style: str = "") -> str:
         return ""
     style_attr = f' style="{extra_style}"' if extra_style else ""
     return f'<img class="chart-img" src="data:image/png;base64,{base64_encoded_png}"{style_attr} />'
-
-
-# ---------------------------------------------------------------------------
-# Interval-specific location sampling
-# ---------------------------------------------------------------------------
 
 
 def _pick_interval_sample_locations(
@@ -333,11 +323,6 @@ def _pick_daily_sample_locations(
         (merged.iloc[len(merged) // 2][unique_id_col], "Typical Location"),
         (merged.iloc[0][unique_id_col], "Most Challenging Location"),
     ]
-
-
-# ---------------------------------------------------------------------------
-# Section renderers
-# ---------------------------------------------------------------------------
 
 
 def _section_reporting_summary(
@@ -475,6 +460,9 @@ def _section_failure_mode(
     donut_base64_chart: str,
 ) -> str:
     """Donut + per-outcome table showing where the best model wins vs. baseline."""
+    if win_loss_df.empty:
+        return ""
+
     row = win_loss_df[win_loss_df["model"] == best_model]
     if row.empty:
         return ""
@@ -735,11 +723,6 @@ def _section_appendix_glossary() -> str:
 </table>"""
 
 
-# ---------------------------------------------------------------------------
-# Next steps
-# ---------------------------------------------------------------------------
-
-
 def _section_next_steps(
     improvement_pct: float | None,
     is_significant: bool,
@@ -785,11 +768,6 @@ def _section_next_steps(
         ]
 
     return f"<ul>{''.join(items)}</ul>"
-
-
-# ---------------------------------------------------------------------------
-# Public entrypoint
-# ---------------------------------------------------------------------------
 
 
 def build_report(

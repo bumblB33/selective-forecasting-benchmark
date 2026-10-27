@@ -281,7 +281,8 @@ def main() -> None:
         metric_prefix = (
             f"{metric_config.metric_name}_" if metric_config.metric_name != "net_sales" else ""
         )
-        file_prefix = f"daily_{metric_prefix}{window_label + '_' if window_label else ''}"
+        window_prefix = f"{window_label}_" if window_label else ""
+        file_prefix = f"daily_{metric_prefix}{window_prefix}"
         save_metrics(
             all_location_metrics=result["all_location_metrics"],
             aggregate_metrics_df=combine_aggregate_metrics(result["aggregate_metrics_dict"]),
@@ -296,7 +297,6 @@ def main() -> None:
         )
 
         timestamp = datetime.now().strftime(config.TIMESTAMP_FORMAT)
-        window_prefix = f"{window_label}_" if window_label else ""
         report_filename = f"daily_{metric_prefix}benchmark_{window_prefix}{timestamp}.html"
         baseline_notes = (
             [

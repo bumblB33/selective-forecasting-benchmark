@@ -166,7 +166,7 @@ class TestMetricNamingConventions:
 
 
 class TestPipelineModulesImport:
-    """Pipeline modules import `core/` directly, so a removed re-export surfaces here."""
+    """Function-local imports and config reads are not exercised here."""
 
     @pytest.mark.parametrize(
         "module_name",

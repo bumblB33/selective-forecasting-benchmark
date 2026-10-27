@@ -63,7 +63,7 @@ def load_daily_actual_vs_forecast(path: str | Path | None = None) -> pd.DataFram
     if missing_columns:
         raise ValueError(
             f"daily_actual_vs_forecast.csv is missing expected columns: {sorted(missing_columns)}\n"
-            "Re-run snowflake/daily_actual_vs_forecast.sql and save the output to "
+            "Re-run snowflake/daily_avf.sql and save the output to "
             "data/input/daily_actual_vs_forecast.csv"
         )
 
@@ -74,7 +74,7 @@ def load_daily_actual_vs_forecast(path: str | Path | None = None) -> pd.DataFram
         logger.warning(
             "daily_actual_vs_forecast.csv is missing optional columns %s. "
             "gross_sales benchmarking will fail if --metric gross_sales is requested. "
-            "Re-run snowflake/daily_actual_vs_forecast.sql to add GROSS_SALES_ACTUAL.",
+            "Re-run snowflake/daily_avf.sql to add GROSS_SALES_ACTUAL.",
             sorted(absent_optional),
         )
 
@@ -288,7 +288,7 @@ def determine_anchor_date(actual_vs_forecast_df: pd.DataFrame) -> pd.Timestamp:
         raise ValueError(
             "No rows with positive PROJECTION and non-null ACTUAL_VALUE found in "
             "daily_actual_vs_forecast.csv; cannot determine anchor date. Re-run "
-            "snowflake/daily_actual_vs_forecast.sql and save the output to "
+            "snowflake/daily_avf.sql and save the output to "
             "data/input/daily_actual_vs_forecast.csv, ensuring the extract includes "
             "test-period projections and actuals."
         )

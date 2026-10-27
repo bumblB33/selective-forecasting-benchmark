@@ -111,12 +111,12 @@ no training. They represent the production system's forecasts at evaluation time
 
 | Variant | Source | Zero-projection rows |
 |---|---|---|
-| `Baseline_Production` | Raw `Baseline_PROJECTION` (or `PROJECTION`) column | Excluded |
+| `Baseline_Production` | Raw `BASELINE_PROJECTION` (or `PROJECTION`) column | Excluded |
 | `Baseline_Adjusted_Draft` | Projection plus `USER_ADJUSTMENT` (manager draft) | Excluded |
 | `Baseline_Adjusted_Published` | Projection plus `PUBLISHED_USER_ADJUSTMENT` | Excluded |
 | `Baseline_ManagerOnly_Draft` | Draft-adjusted on `IS_GENERATED_BY_MANAGER=TRUE` rows | Excluded |
 | `Baseline_ManagerOnly_Published` | Published-adjusted on `IS_GENERATED_BY_MANAGER=TRUE` rows | Excluded |
-| `Baseline_Production_Strict` | Raw `Baseline_PROJECTION` column | Included |
+| `Baseline_Production_Strict` | Raw `BASELINE_PROJECTION` column | Included |
 | `Baseline_Adjusted_Draft_Strict` | Projection plus draft adjustment | Included |
 
 The `ManagerOnly` variants are only available in the daily pipeline.

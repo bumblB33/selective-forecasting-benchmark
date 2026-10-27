@@ -33,6 +33,7 @@ forecasting-ablation   = "scripts.configure_training_length:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["."]
 
 [tool.flake8]
 max-line-length = 100

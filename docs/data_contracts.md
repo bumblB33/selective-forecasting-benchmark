@@ -49,9 +49,9 @@ columns are absent.
 
 ### `determine_test_window(interval_df) -> tuple[pd.Timestamp, pd.Timestamp]`
 
-Interval pipeline only. Derives the test window boundaries from `Baseline_PROJECTION`
-nullity; rows where the projection is `NOT NULL` define the test window.
-Returns `(test_start, test_end)` timestamps that are used by `create_train_test_split`.
+Interval pipeline only. The window ends at the last interval with a non-null
+`BASELINE_PROJECTION` and spans `TEST_PERIOD_WEEKS`. Returns `(test_start, test_end)`
+timestamps that are used by `create_train_test_split`.
 
 ### `create_train_test_split(nixtla_df, test_start, test_end, max_train_history_weeks) -> tuple[pd.DataFrame, pd.DataFrame]`
 
