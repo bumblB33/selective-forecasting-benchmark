@@ -185,6 +185,9 @@ def compute_win_loss(
             }
         )
 
+    if not comparison_rows:
+        return pd.DataFrame()
+
     return (
         pd.DataFrame(comparison_rows)
         .sort_values("win_rate", ascending=False)

@@ -22,7 +22,7 @@ dev = ["pytest>=8.0", "flake8>=6.0", "flake8-pyproject>=1.0", "black>=23.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["daily", "interval", "core", "reporting", "scripts"]
+include = ["daily", "interval", "core", "reporting", "scripts", "output_contract"]
 
 [project.scripts]
 forecasting-daily      = "daily.run:main"
@@ -34,6 +34,9 @@ forecasting-ablation   = "scripts.configure_training_length:main"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.black]
+line-length = 100
 
 [tool.flake8]
 max-line-length = 100

@@ -318,4 +318,4 @@ LEFT JOIN precompute_outlier_flags AS pof
     ON  ig.tenant_id         = pof.tenant_id
     AND ig.location_id       = pof.location_id
     AND ig.business_day_date = pof.day_date
-ORDER BY ig.CUSTOMER_ID, ig.SITE_ID, ig.interval_start_timestamp;
+ORDER BY ig.tenant_id, ig.location_id, ig.interval_start_timestamp;

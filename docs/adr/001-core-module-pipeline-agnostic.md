@@ -25,7 +25,6 @@ The constraint is enforced by `tests/test_architecture_constraints.py::TestCoreM
 
 - Adding a new shared function requires placing it in `core/` and updating callers to pass configuration values.
 - Pipeline-specific behavior is encoded at the call site, not inside the shared function.
-- `core/preprocessing.py::add_fourier_features()` uses default parameter values that reflect daily
-  pipeline conventions (105-week history, daily frequency). Interval callers must explicitly override
-  these defaults. The `create_train_test_split()` default of `max_train_history_weeks=105` is the
-  daily value; interval callers pass 26.
+- `core/preprocessing.py::add_fourier_features()` is daily-only. Its default `frequency="D"` and
+  `forecast_horizon=7` reflect daily pipeline conventions. The `create_train_test_split()` default of
+  `max_train_history_weeks=105` is the daily value; interval callers pass 26.
