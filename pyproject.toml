@@ -18,7 +18,7 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.0", "flake8>=6.0", "flake8-pyproject>=1.0", "black>=23.0"]
+dev = ["pytest>=8.0", "flake8>=6.0", "flake8-pyproject>=1.0", "black>=23.0", "pre-commit>=3.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
@@ -36,8 +36,8 @@ testpaths = ["tests"]
 pythonpath = ["."]
 
 [tool.black]
-line-length = 100
+line-length = 120
 
 [tool.flake8]
-max-line-length = 100
+max-line-length = 120
 exclude = [".git", "__pycache__", ".venv", "build", "dist"]
