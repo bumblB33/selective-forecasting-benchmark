@@ -59,7 +59,7 @@ actual_vs_forecast_sessions AS (
     ) = 1
 ),
 
--- Mirrors daily_actual_vs_forecast.sql: uses normalized daily_interval_forecasts instead of
+-- Mirrors daily_avf.sql: uses normalized daily_interval_forecasts instead of
 -- BSON LATERAL FLATTEN so eligibility logic is consistent across both pipelines
 -- and survives any future BSON schema changes.
 actual_vs_forecast_projections AS (
@@ -75,7 +75,7 @@ actual_vs_forecast_projections AS (
     GROUP BY s.tenant_id, s.location_id, s.day_date
 ),
 
--- Mirrors daily_actual_vs_forecast.sql: uses daily_sales_summary as the authoritative actuals
+-- Mirrors daily_avf.sql: uses daily_sales_summary as the authoritative actuals
 -- source. This also fixes real_actuals_tail (below) so the training window
 -- anchor comes from the same table as the actual training data.
 actual_vs_forecast_actuals AS (
@@ -318,4 +318,4 @@ LEFT JOIN precompute_outlier_flags AS pof
     ON  ig.tenant_id         = pof.tenant_id
     AND ig.location_id       = pof.location_id
     AND ig.business_day_date = pof.day_date
-ORDER BY ig.CUSTOMER_ID, ig.SITE_ID, ig.interval_start_timestamp;
+ORDER BY ig.tenant_id, ig.location_id, ig.interval_start_timestamp;

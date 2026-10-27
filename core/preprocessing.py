@@ -82,41 +82,6 @@ def create_train_test_split(
     return training_df, test_df
 
 
-def clip_outliers(
-    nixtla_df: pd.DataFrame,
-    percentile: float = 99.0,
-    caps: dict[str, float] | None = None,
-) -> tuple[pd.DataFrame, dict[str, float]]:
-    """Percentile-based outlier handling for ad hoc use; the main pipeline drops
-    flagged days at load time instead.
-
-    Zeroes negatives, then zeroes (does not clip) days exceeding each location's
-    cap. Pass ``caps`` from training to apply without leakage. Daily-granularity
-    only; the interval pipeline has its own implementation that caps on daily totals.
-    """
-    result = nixtla_df.copy()
-    result[_NIXTLA_Y] = result[_NIXTLA_Y].clip(lower=0.0)
-
-    if caps is None:
-        caps = (
-            result.groupby(_NIXTLA_UNIQUE_ID)[_NIXTLA_Y]
-            .quantile(percentile / 100.0)
-            .to_dict()
-        )
-
-    def _zero_outlier_days(group: pd.DataFrame) -> pd.DataFrame:
-        cap = caps.get(group[_NIXTLA_UNIQUE_ID].iloc[0])
-        if cap is not None and cap > 0:
-            group = group.copy()
-            group.loc[group[_NIXTLA_Y] > cap, _NIXTLA_Y] = 0.0
-        return group
-
-    result = result.groupby(_NIXTLA_UNIQUE_ID, group_keys=False).apply(
-        _zero_outlier_days
-    )
-    return result.reset_index(drop=True), caps
-
-
 def add_calendar_features(nixtla_df: pd.DataFrame) -> pd.DataFrame:
     """Add weekend, month boundary, and US holiday features for the daily pipeline."""
     result = nixtla_df.copy()

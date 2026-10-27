@@ -49,9 +49,9 @@ columns are absent.
 
 ### `determine_test_window(interval_df) -> tuple[pd.Timestamp, pd.Timestamp]`
 
-Interval pipeline only. Derives the test window boundaries from `Baseline_PROJECTION`
-nullity; rows where the projection is `NOT NULL` define the test window.
-Returns `(test_start, test_end)` timestamps that are used by `create_train_test_split`.
+Interval pipeline only. The window ends at the last interval with a non-null
+`BASELINE_PROJECTION` and spans `TEST_PERIOD_WEEKS`. Returns `(test_start, test_end)`
+timestamps that are used by `create_train_test_split`.
 
 ### `create_train_test_split(nixtla_df, test_start, test_end, max_train_history_weeks) -> tuple[pd.DataFrame, pd.DataFrame]`
 
@@ -87,15 +87,6 @@ or augmented versions with additional feature columns.
 
 Fills gaps in the time series with `y = 0.0` rows so that downstream models
 receive a regular grid.
-
-### `clip_outliers(df) -> tuple[pd.DataFrame, dict]`
-
-Zeroes out extreme `y` values above the 99.0th percentile per location.
-Values exceeding the per-location cap are set to `0.0`, not clipped to the
-cap. This mirrors the production baseline's behavior of excluding entire outlier
-days from historical averages rather than truncating them. Returns the processed
-DataFrame and a `caps` dict (`{unique_id: cap_value}`) that must be passed
-back when processing test or future data, to prevent leakage.
 
 ### `add_calendar_features(df) -> pd.DataFrame`
 
@@ -164,8 +155,8 @@ Persists all metric DataFrames and the raw actuals and predictions to timestampe
 ### `build_volume_tiers(actuals) -> pd.DataFrame`
 
 Assigns Q1 through Q4 volume tiers based on mean per-location sales. Returns a
-DataFrame with columns `unique_id` and `volume_tier`. Available in both the
-daily and interval pipelines (`daily/evaluation.py` and `interval/evaluation.py`).
+DataFrame with columns `unique_id` and `volume_tier`. Lives in `core/evaluation.py`
+and is shared by both pipelines.
 
 ## Reporting
 

@@ -155,11 +155,6 @@ def _df_to_html(
 </table>"""
 
 
-# ---------------------------------------------------------------------------
-# Internal helpers
-# ---------------------------------------------------------------------------
-
-
 def _display_name(model_name: str) -> str:
     """Human-readable model label, with the model id as fallback."""
     return MODEL_DISPLAY_NAMES.get(model_name, model_name)
@@ -236,11 +231,6 @@ def _img_tag(base64_encoded_png: str, extra_style: str = "") -> str:
         return ""
     style_attr = f' style="{extra_style}"' if extra_style else ""
     return f'<img class="chart-img" src="data:image/png;base64,{base64_encoded_png}"{style_attr} />'
-
-
-# ---------------------------------------------------------------------------
-# Interval-specific location sampling
-# ---------------------------------------------------------------------------
 
 
 def _pick_interval_sample_locations(
@@ -335,11 +325,6 @@ def _pick_daily_sample_locations(
     ]
 
 
-# ---------------------------------------------------------------------------
-# Section renderers
-# ---------------------------------------------------------------------------
-
-
 def _section_reporting_summary(
     best_model: str,
     best_win_rate: float,
@@ -386,7 +371,8 @@ def _section_reporting_summary(
     return f"""<div class="{verdict_cls}">
   <strong>Overall Verdict: {label}</strong><br>
   The best-performing model (<strong>{_display_name(best_model)}</strong>) produces more accurate
-  forecasts than Baseline Production at <strong>{best_win_rate:.0%} of evaluated locations</strong>{improvement_str}.{sig_note}
+  forecasts than Baseline Production at
+  <strong>{best_win_rate:.0%} of evaluated locations</strong>{improvement_str}.{sig_note}
 </div>
 {eval_context}"""
 
@@ -474,6 +460,9 @@ def _section_failure_mode(
     donut_base64_chart: str,
 ) -> str:
     """Donut + per-outcome table showing where the best model wins vs. baseline."""
+    if win_loss_df.empty:
+        return ""
+
     row = win_loss_df[win_loss_df["model"] == best_model]
     if row.empty:
         return ""
@@ -489,7 +478,8 @@ def _section_failure_mode(
   <div>{donut_html}</div>
   <div style="flex:1;min-width:220px">
     <p>
-      <strong>{_display_name(best_model)}</strong> forecasts more accurately than Baseline Production
+      <strong>{_display_name(best_model)}</strong> forecasts more accurately than
+      Baseline Production
       at <strong>{wins} of {n} locations</strong>. Accuracy is measured by average forecast
       error (MAE): how far off, in dollars, the forecast is from actual sales on a typical day.
     </p>
@@ -672,7 +662,8 @@ def _section_appendix_cv(
     if cv_metrics_df.empty:
         return ""
     cv_table = _df_to_html(cv_metrics_df, per_column_format={"MAE": ".2f", "RMSE": ".2f"})
-    return f"""<h3>Consistency Check: Cross-Validation ({context.cv_num_windows or "?"} windows)</h3>
+    cv_windows_label = context.cv_num_windows or "?"
+    return f"""<h3>Consistency Check: Cross-Validation ({cv_windows_label} windows)</h3>
 <p class="text-muted">
   To confirm results aren't a fluke of the test week, each model was also evaluated on
   {context.cv_num_windows or "multiple"} earlier held-out periods within the training data.
@@ -689,7 +680,10 @@ def _section_appendix_sig(
     context: ReportContext,
 ) -> str:
     if statistical_tests_df.empty:
-        return "<p>Insufficient data for significance testing (requires at least 10 common locations).</p>"
+        return (
+            "<p>Insufficient data for significance testing "
+            "(requires at least 10 common locations).</p>"
+        )
     return f"""<h3>Statistical Reliability (vs {_display_name(context.baseline_model)})</h3>
 <p class="text-muted">
   A Wilcoxon signed-rank test was run to determine whether each model's accuracy
@@ -727,11 +721,6 @@ def _section_appendix_glossary() -> str:
   <thead><tr><th>Metric</th><th>Definition</th></tr></thead>
   <tbody>{rows}</tbody>
 </table>"""
-
-
-# ---------------------------------------------------------------------------
-# Next steps
-# ---------------------------------------------------------------------------
 
 
 def _section_next_steps(
@@ -779,11 +768,6 @@ def _section_next_steps(
         ]
 
     return f"<ul>{''.join(items)}</ul>"
-
-
-# ---------------------------------------------------------------------------
-# Public entrypoint
-# ---------------------------------------------------------------------------
 
 
 def build_report(
@@ -943,7 +927,8 @@ def build_report(
     elif context.baseline_model is None:
         mae_note = (
             f"The best-performing model, <strong>{_display_name(best_model)}</strong>, "
-            f"achieves a mean MAE of <strong>${best_mae:,.2f}</strong> per {granularity_label}, per location."
+            f"achieves a mean MAE of <strong>${best_mae:,.2f}</strong> "
+            f"per {granularity_label}, per location."
             if best_mae is not None
             else ""
         )
@@ -952,9 +937,9 @@ def build_report(
             f"<li><strong>{n_models_tested}</strong> Nixtla models were evaluated on "
             f"<strong>{context.metric_label}</strong> forecasting accuracy.</li>"
             + (f"<li>{mae_note}</li>" if mae_note else "")
-            + f"<li>No production baseline forecast is available for this metric; "
-            f"win/loss comparisons and statistical tests are not applicable.</li>"
-            f"</ul>"
+            + "<li>No production baseline forecast is available for this metric; "
+            "win/loss comparisons and statistical tests are not applicable.</li>"
+            "</ul>"
         )
     else:
         findings_html = (
@@ -963,7 +948,8 @@ def build_report(
             f"forecast errors than Baseline Production at a majority of locations.</li>"
             f"<li>No model demonstrates a consistent, meaningful accuracy advantage over "
             f"Baseline Production at this time.</li>"
-            f"<li>Evaluating additional weeks of data is recommended before drawing firm conclusions.</li>"
+            "<li>Evaluating additional weeks of data is recommended before drawing "
+            "firm conclusions.</li>"
             f"</ul>"
         )
 
@@ -1101,7 +1087,8 @@ def build_report(
             "<h3>Sample Location Forecasts: Single Day View</h3>"
             "<p class='text-muted'>Forecast vs actual 15-minute sales for a best-performing, "
             "typical, and most-challenging location. Each chart shows one representative day "
-            "(the day closest to that location's median daily sales volume during the test week).</p>"
+            "(the day closest to that location's median daily sales volume during "
+            "the test week).</p>"
             + location_charts_html
         )
         if location_charts_html and context.interval == "15min"

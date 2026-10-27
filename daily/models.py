@@ -8,6 +8,7 @@ from typing import Any
 import pandas as pd
 
 from core.models import _cleanup_memory, _heartbeat, derive_available_exog
+from core.preprocessing import add_calendar_features
 from . import config
 
 logger = logging.getLogger(__name__)
@@ -80,48 +81,6 @@ def _build_mlforecast_model(model_name: str, model_cfg: dict):
         if key not in ("lags", "date_features", "num_threads")
     }
     return LGBMRegressor(**lgbm_kwargs, verbose=-1, random_state=config.RANDOM_SEED)
-
-
-def _build_future_exog(
-    training_df: pd.DataFrame,
-    future_fourier_df: pd.DataFrame | None,
-    locations: list[str],
-) -> pd.DataFrame | None:
-    """Future calendar + Fourier exog grid for every location over the horizon.
-
-    Built outside the forecasting libraries so the same feature contract is
-    reusable across StatsForecast and MLForecast paths.
-    """
-    from .preprocessing import add_calendar_features
-
-    last_date = training_df[config.NIXTLA_DS].max()
-    future_dates = pd.date_range(
-        start=last_date + pd.Timedelta(days=1),
-        periods=config.FORECAST_HORIZON,
-        freq=config.FREQUENCY,
-    )
-
-    future_location_frames = [
-        pd.DataFrame({config.NIXTLA_UNIQUE_ID: uid, config.NIXTLA_DS: future_dates})
-        for uid in locations
-    ]
-    future_df = pd.concat(future_location_frames, ignore_index=True)
-    future_df[config.NIXTLA_Y] = 0.0
-    future_df = add_calendar_features(future_df)
-
-    if future_fourier_df is not None and not future_fourier_df.empty:
-        merge_keys = [config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS]
-        future_df = future_df.merge(future_fourier_df, on=merge_keys, how="left")
-
-    exog_columns = [
-        column
-        for column in future_df.columns
-        if column not in (config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y)
-        and (
-            column in config.FUTURE_EXOGENOUS_FEATURES or column.startswith("fourier_")
-        )
-    ]
-    return future_df[[config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS] + exog_columns]
 
 
 def run_statsforecast(
@@ -334,8 +293,6 @@ def _build_aligned_mlforecast_xdf(
     if not exog_columns:
         return None
 
-    from .preprocessing import add_calendar_features
-
     expected_df = fitted_fcst.make_future_dataframe(h=config.FORECAST_HORIZON)
     expected_df = add_calendar_features(expected_df)
 
@@ -346,9 +303,7 @@ def _build_aligned_mlforecast_xdf(
             if column not in expected_df.columns and column in future_exog_df.columns
         ]
         if missing_columns:
-            # All series share one future date grid (enforced by fill_missing_dates),
-            # so merging on ds is safe. If endpoints ever diverge, switch to a
-            # per-timestamp build like the interval pipeline.
+            # add_fourier_features asserts a shared end date, so merging on ds alone is safe.
             deduplicated_future_exog = future_exog_df[
                 [config.NIXTLA_DS] + missing_columns
             ].drop_duplicates(subset=[config.NIXTLA_DS])

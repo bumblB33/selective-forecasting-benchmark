@@ -185,6 +185,9 @@ def compute_win_loss(
             }
         )
 
+    if not comparison_rows:
+        return pd.DataFrame()
+
     return (
         pd.DataFrame(comparison_rows)
         .sort_values("win_rate", ascending=False)
@@ -227,7 +230,8 @@ def compute_statistical_tests(
         n_ties = len(differences_clean) - n_unique
         if n_ties > len(differences_clean) * 0.1:
             logger.warning(
-                "Model %s has %d ties in %d differences (%.1f%%) - Wilcoxon test may be less accurate",
+                "Model %s has %d ties in %d differences (%.1f%%) - "
+                "Wilcoxon test may be less accurate",
                 model_name,
                 n_ties,
                 len(differences_clean),

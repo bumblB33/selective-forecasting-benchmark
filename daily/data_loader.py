@@ -63,7 +63,8 @@ def load_daily_actual_vs_forecast(path: str | Path | None = None) -> pd.DataFram
     if missing_columns:
         raise ValueError(
             f"daily_actual_vs_forecast.csv is missing expected columns: {sorted(missing_columns)}\n"
-            "Re-run snowflake/daily_actual_vs_forecast.sql and save the output to data/input/daily_actual_vs_forecast.csv"
+            "Re-run snowflake/daily_avf.sql and save the output to "
+            "data/input/daily_actual_vs_forecast.csv"
         )
 
     absent_optional = _OPTIONAL_DAILY_ACTUAL_VS_FORECAST_COLUMNS - set(
@@ -73,7 +74,7 @@ def load_daily_actual_vs_forecast(path: str | Path | None = None) -> pd.DataFram
         logger.warning(
             "daily_actual_vs_forecast.csv is missing optional columns %s. "
             "gross_sales benchmarking will fail if --metric gross_sales is requested. "
-            "Re-run snowflake/daily_actual_vs_forecast.sql to add GROSS_SALES_ACTUAL.",
+            "Re-run snowflake/daily_avf.sql to add GROSS_SALES_ACTUAL.",
             sorted(absent_optional),
         )
 
@@ -147,27 +148,27 @@ def build_baseline_variants(
         )
 
     baselines = {
-        config.Baseline_PRODUCTION: _to_nixtla(
+        config.BASELINE_PRODUCTION: _to_nixtla(
             actual_vs_forecast_df[baseline_filter], config.COL_PROJECTION
         ),
-        config.Baseline_ADJUSTED_DRAFT: _to_nixtla(
+        config.BASELINE_ADJUSTED_DRAFT: _to_nixtla(
             actual_vs_forecast_df[baseline_filter], adjusted_draft_column
         ),
-        config.Baseline_ADJUSTED_PUBLISHED: _to_nixtla(
+        config.BASELINE_ADJUSTED_PUBLISHED: _to_nixtla(
             actual_vs_forecast_df[baseline_filter], adjusted_published_column
         ),
-        config.Baseline_MANAGER_ONLY_DRAFT: _to_nixtla(
+        config.BASELINE_MANAGER_ONLY_DRAFT: _to_nixtla(
             actual_vs_forecast_df[baseline_filter & is_manager_generated],
             adjusted_draft_column,
         ),
-        config.Baseline_MANAGER_ONLY_PUBLISHED: _to_nixtla(
+        config.BASELINE_MANAGER_ONLY_PUBLISHED: _to_nixtla(
             actual_vs_forecast_df[baseline_filter & is_manager_generated],
             adjusted_published_column,
         ),
-        config.Baseline_PRODUCTION_STRICT: _to_nixtla(
+        config.BASELINE_PRODUCTION_STRICT: _to_nixtla(
             actual_vs_forecast_df, config.COL_PROJECTION
         ),
-        config.Baseline_ADJUSTED_DRAFT_STRICT: _to_nixtla(
+        config.BASELINE_ADJUSTED_DRAFT_STRICT: _to_nixtla(
             actual_vs_forecast_df, adjusted_draft_column
         ),
     }
@@ -236,31 +237,6 @@ def build_actuals_strict(
     )
 
 
-def filter_eligible_locations(actual_vs_forecast_df: pd.DataFrame) -> list[str]:
-    """Mirror the SQL eligibility filter (``MIN_DAYS_WITH_ACTUALS``).
-
-    Acts as a safeguard for ad hoc analysis that bypasses the SQL filter;
-    a no-op for normal pipeline runs.
-    """
-    eligible_location_ids = (
-        actual_vs_forecast_df[
-            actual_vs_forecast_df[config.COL_ACTUAL_VALUE].notna()
-            & (actual_vs_forecast_df[config.COL_PROJECTION] > 0)
-        ]
-        .groupby(config.COL_ENTITY_UID)
-        .filter(
-            lambda location_history: (
-                location_history[config.COL_DAY_START_TIME].dt.date.nunique()
-                >= config.MIN_DAYS_WITH_ACTUALS
-            )
-        )[config.COL_ENTITY_UID]
-        .unique()
-        .tolist()
-    )
-    logger.info("Eligible locations: %d", len(eligible_location_ids))
-    return eligible_location_ids
-
-
 def drop_outlier_days(nixtla_df: pd.DataFrame, actual_vs_forecast_df: pd.DataFrame) -> pd.DataFrame:
     """Drop flagged outlier days entirely, mirroring the production system.
 
@@ -312,7 +288,7 @@ def determine_anchor_date(actual_vs_forecast_df: pd.DataFrame) -> pd.Timestamp:
         raise ValueError(
             "No rows with positive PROJECTION and non-null ACTUAL_VALUE found in "
             "daily_actual_vs_forecast.csv; cannot determine anchor date. Re-run "
-            "snowflake/daily_actual_vs_forecast.sql and save the output to "
+            "snowflake/daily_avf.sql and save the output to "
             "data/input/daily_actual_vs_forecast.csv, ensuring the extract includes "
             "test-period projections and actuals."
         )

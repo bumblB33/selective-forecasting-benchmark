@@ -11,20 +11,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from reporting.report import ReportContext, build_report
-
-from core.paths import PROJECT_ROOT
-
-from . import config
-from .data_loader import (
-    build_actuals,
-    build_actuals_strict,
-    build_baseline_variants,
-    determine_anchor_date,
-    load_daily_actual_vs_forecast,
-    summarize_actual_vs_forecast_data,
-)
-from .evaluation import (
+from core.evaluation import (
     aggregate_metrics,
     build_volume_tiers,
     combine_aggregate_metrics,
@@ -34,19 +21,27 @@ from .evaluation import (
     compute_win_loss,
     save_metrics,
 )
+from core.paths import PROJECT_ROOT
+from core.preprocessing import add_calendar_features, add_fourier_features, create_train_test_split
+from reporting.report import ReportContext, build_report
+
+from . import config
+from .data_loader import (
+    build_actuals,
+    build_actuals_strict,
+    build_baseline_variants,
+    determine_anchor_date,
+    drop_outlier_days,
+    load_daily_actual_vs_forecast,
+    summarize_actual_vs_forecast_data,
+)
 from .models import (
     run_mlforecast,
     run_mlforecast_cv,
     run_statsforecast,
     run_statsforecast_cv,
 )
-from .data_loader import drop_outlier_days
-from .preprocessing import (
-    add_calendar_features,
-    add_fourier_features,
-    create_train_test_split,
-    fill_missing_dates,
-)
+from .preprocessing import fill_missing_dates
 
 warnings.filterwarnings("ignore")
 logger = logging.getLogger(__name__)
@@ -54,7 +49,9 @@ logger = logging.getLogger(__name__)
 
 def parse_args() -> argparse.Namespace:
     """CLI flags for the daily benchmark entry point."""
-    parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    parser = argparse.ArgumentParser(
+        description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
+    )
     parser.add_argument("--no-sf", action="store_true", help="Skip StatsForecast models")
     parser.add_argument("--no-ml", action="store_true", help="Skip MLForecast models")
     parser.add_argument("--no-cv", action="store_true", help="Skip cross-validation")
@@ -63,7 +60,8 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=1,
         metavar="N",
-        help="Number of consecutive 1-week evaluation windows walking backward from the anchor date",
+        help="Number of consecutive 1-week evaluation windows walking backward "
+        "from the anchor date",
     )
     parser.add_argument(
         "--data-path",
@@ -146,7 +144,8 @@ def _run_single_window(
     )
     if not metric_config.has_baseline:
         logger.info(
-            "%s benchmark: no production baseline available; win/loss and statistical tests will be skipped.",
+            "%s benchmark: no production baseline available; "
+            "win/loss and statistical tests will be skipped.",
             metric_config.display_label,
         )
 
@@ -168,9 +167,15 @@ def _run_single_window(
     cv_metrics_df = pd.DataFrame()
     if run_cv:
         sf_cv = run_statsforecast_cv(training_df) if run_sf else pd.DataFrame()
-        ml_cv = run_mlforecast_cv(training_df, fourier_columns=fourier_columns) if run_ml else pd.DataFrame()
+        ml_cv = (
+            run_mlforecast_cv(training_df, fourier_columns=fourier_columns)
+            if run_ml
+            else pd.DataFrame()
+        )
         if not sf_cv.empty or not ml_cv.empty:
-            combined_cv = pd.concat([df for df in [sf_cv, ml_cv] if not df.empty], ignore_index=True)
+            combined_cv = pd.concat(
+                [df for df in [sf_cv, ml_cv] if not df.empty], ignore_index=True
+            )
             cv_metrics_df = compute_cv_metrics(
                 combined_cv,
                 exclude_zero_actuals=config.EXCLUDE_ZERO_ACTUAL_FROM_EVAL,
@@ -178,8 +183,8 @@ def _run_single_window(
             logger.info("CV metrics:\n%s", cv_metrics_df.to_string(index=False))
 
     strict_model_names = {
-        config.Baseline_PRODUCTION_STRICT,
-        config.Baseline_ADJUSTED_DRAFT_STRICT,
+        config.BASELINE_PRODUCTION_STRICT,
+        config.BASELINE_ADJUSTED_DRAFT_STRICT,
     }
     all_location_metrics: dict[str, pd.DataFrame] = {}
     aggregate_metrics_dict: dict[str, pd.DataFrame] = {}
@@ -231,7 +236,9 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s  %(name)-30s  %(levelname)-7s  %(message)s",
         handlers=[
-            logging.FileHandler(os.path.join(PROJECT_ROOT, "logs", "daily_benchmark.log"), mode="w"),
+            logging.FileHandler(
+                os.path.join(PROJECT_ROOT, "logs", "daily_benchmark.log"), mode="w"
+            ),
             logging.StreamHandler(),
         ],
     )
@@ -249,7 +256,10 @@ def main() -> None:
 
     base_anchor = determine_anchor_date(actual_vs_forecast_df)
 
-    anchors = [base_anchor - pd.Timedelta(weeks=window_index) for window_index in range(args.rolling_windows)]
+    anchors = [
+        base_anchor - pd.Timedelta(weeks=window_index)
+        for window_index in range(args.rolling_windows)
+    ]
 
     all_results = []
     for window_index, anchor in enumerate(anchors):
@@ -268,8 +278,11 @@ def main() -> None:
             window_label=window_label,
         )
 
-        metric_prefix = f"{metric_config.metric_name}_" if metric_config.metric_name != "net_sales" else ""
-        file_prefix = f"daily_{metric_prefix}{window_label + '_' if window_label else ''}"
+        metric_prefix = (
+            f"{metric_config.metric_name}_" if metric_config.metric_name != "net_sales" else ""
+        )
+        window_prefix = f"{window_label}_" if window_label else ""
+        file_prefix = f"daily_{metric_prefix}{window_prefix}"
         save_metrics(
             all_location_metrics=result["all_location_metrics"],
             aggregate_metrics_df=combine_aggregate_metrics(result["aggregate_metrics_dict"]),
@@ -284,10 +297,11 @@ def main() -> None:
         )
 
         timestamp = datetime.now().strftime(config.TIMESTAMP_FORMAT)
-        report_filename = f"daily_{metric_prefix}benchmark_{window_label + '_' if window_label else ''}{timestamp}.html"
+        report_filename = f"daily_{metric_prefix}benchmark_{window_prefix}{timestamp}.html"
         baseline_notes = (
             [
-                f"<strong>{metric_config.display_label} benchmark:</strong> No production baseline is available for this metric. "
+                f"<strong>{metric_config.display_label} benchmark:</strong> "
+                "No production baseline is available for this metric. "
                 "Win/loss and statistical tests are omitted. Only Nixtla model results are shown."
             ]
             if not metric_config.has_baseline
@@ -306,7 +320,8 @@ def main() -> None:
             metric_label=metric_config.display_label,
             extra_notes=[
                 "Missing dates in training data are filled with <code>y=0.0</code>. "
-                "This assumes absent dates represent days when the location was closed or not operating. "
+                "This assumes absent dates represent days when the location was closed "
+                "or not operating. "
                 "These zero-sales days are included in Nixtla model training but are excluded from "
                 "evaluation per <code>EXCLUDE_ZERO_ACTUAL_FROM_EVAL=True</code>.",
                 *baseline_notes,
@@ -347,8 +362,15 @@ def _log_rolling_aggregate(results: list[dict], anchors: list[pd.Timestamp]) -> 
                     }
                 )
     rolling_summary_input = pd.DataFrame(summary_rows)
-    summary = rolling_summary_input.groupby("model")["MAE_mean"].agg(["mean", "std"]).reset_index().sort_values("mean")
-    summary["MAE (mean +/- std)"] = summary.apply(lambda row: f"${row['mean']:,.2f} +/- ${row['std']:,.2f}", axis=1)
+    summary = (
+        rolling_summary_input.groupby("model")["MAE_mean"]
+        .agg(["mean", "std"])
+        .reset_index()
+        .sort_values("mean")
+    )
+    summary["MAE (mean +/- std)"] = summary.apply(
+        lambda row: f"${row['mean']:,.2f} +/- ${row['std']:,.2f}", axis=1
+    )
     logger.info(
         "Rolling-window aggregate (%d windows):\n%s",
         len(results),

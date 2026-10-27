@@ -46,8 +46,8 @@ Data is sourced from Snowflake and saved locally before running the benchmarks. 
 
 | File | SQL Source | Frequency | Description |
 | :--- | :--- | :--- | :--- |
-| `data/input/daily_actual_vs_forecast.csv` | [snowflake/daily_actual_vs_forecast.sql](../snowflake/daily_actual_vs_forecast.sql) | Daily | One row per location per calendar day. |
-| `data/input/interval_actual_vs_forecast.csv` | [snowflake/interval_actual_vs_forecast.sql](../snowflake/interval_actual_vs_forecast.sql) | 15-minute | One row per location per 15-minute slot. |
+| `data/input/daily_actual_vs_forecast.csv` | [snowflake/daily_avf.sql](../snowflake/daily_avf.sql) | Daily | One row per location per calendar day. |
+| `data/input/interval_actual_vs_forecast.csv` | [snowflake/interval_avf.sql](../snowflake/interval_avf.sql) | 15-minute | One row per location per 15-minute slot. |
 
 Note: `data/input/` is gitignored and must never be committed.
 
@@ -71,8 +71,8 @@ All internal modules communicate using DataFrames in Nixtla format. The mapping 
 
 Locations are included in the benchmark if they have:
 
-- At least 90 days of historical actual sales data with a positive projection, for the daily pipeline (as set by `min_days_with_actuals` in [daily_actual_vs_forecast.sql](../snowflake/daily_actual_vs_forecast.sql)).
-- At least 28 days of historical actual sales data with a positive projection, for the interval pipeline (as set by `min_days_with_actuals` in [interval_actual_vs_forecast.sql](../snowflake/interval_actual_vs_forecast.sql)).
+- At least 90 days of historical actual sales data with a positive projection, for the daily pipeline (as set by `min_days_with_actuals` in [daily_avf.sql](../snowflake/daily_avf.sql)).
+- At least 28 days of historical actual sales data with a positive projection, for the interval pipeline (as set by `min_days_with_actuals` in [interval_avf.sql](../snowflake/interval_avf.sql)).
 - A valid Baseline production projection in the evaluation window.
 
 The daily SQL exposes `IS_GENERATED_BY_MANAGER` as a column but does not filter on it. The Python pipeline uses this flag to construct separate `Baseline_ManagerOnly_Draft` and `Baseline_ManagerOnly_Published` baseline variants (see [Baseline and benchmarking](#baseline-and-benchmarking)).
@@ -92,10 +92,10 @@ The evaluation window is a rolling series of seven-day windows determined by the
 
 ### Interval pipeline
 
-The evaluation window is defined by the presence of a `Baseline_PROJECTION`.
+The evaluation window ends at the last interval with a non-null `BASELINE_PROJECTION` and spans one week (`determine_test_window()`).
 
-- Training data: rows where `Baseline_PROJECTION IS NULL`.
-- Test data: rows where `Baseline_PROJECTION IS NOT NULL` (typically one week of 15-minute slots).
+- Training data: intervals before the window start, bounded by `TRAIN_HISTORY_WEEKS`.
+- Test data: intervals inside the window (typically one week of 15-minute slots).
 
 ---
 
@@ -123,7 +123,7 @@ All metrics are computed per location, then summarized as a mean or median.
 The pipelines apply two business-logic assumptions before model training:
 
 1. Closed-day assumption: missing dates or intervals are filled with `y = 0.0`, treating gaps as periods when a location was closed.
-2. Outlier clipping: target values are capped at the 99.0th percentile per location (`CLIP_OUTLIER_PERCENTILE = 99.0` in both [daily/config.py](../daily/config.py) and [interval/config.py](../interval/config.py)). Caps are learned from training data only and applied identically to the train and test sets, which prevents leakage.
+2. Outlier exclusion: days flagged `IS_OUTLIER` by the production system are dropped from training (`drop_outlier_days` in each data loader).
 
 ---
 
@@ -214,7 +214,7 @@ Both pipelines construct multiple baseline variants from the Snowflake extract:
 
 | Variant | Formula | Zero-Projection Rows | Pipeline |
 | :--- | :--- | :--- | :--- |
-| `Baseline_Production` | `PROJECTION` (daily) or `Baseline_PROJECTION` (interval) | Excluded | Both |
+| `Baseline_Production` | `PROJECTION` (daily) or `BASELINE_PROJECTION` (interval) | Excluded | Both |
 | `Baseline_Adjusted_Draft` | `PROJECTION + USER_ADJUSTMENT` | Excluded | Both |
 | `Baseline_Adjusted_Published` | `PROJECTION + PUBLISHED_USER_ADJUSTMENT` | Excluded | Both |
 | `Baseline_ManagerOnly_Draft` | `PROJECTION + USER_ADJUSTMENT` where `IS_GENERATED_BY_MANAGER = TRUE` | Excluded | Daily only |
@@ -269,7 +269,7 @@ The primary algorithm is `SmartForecasting` (resolved via the `ProjectionModelTy
 | Domain Entity | Property | Snowflake Extract Column | Nixtla Column |
 | :--- | :--- | :--- | :--- |
 | `DailySession` | `Projection` | `PROJECTION` (daily) | `y` (for `Baseline_Production`) |
-| `IntervalForecast` | `Projection` | `Baseline_PROJECTION` (interval) | `y` (for `Baseline_Production`) |
+| `IntervalForecast` | `Projection` | `BASELINE_PROJECTION` (interval) | `y` (for `Baseline_Production`) |
 | `DailySession` or `IntervalForecast` | `UserAdjustment` | `USER_ADJUSTMENT` | Combined with Projection for `Baseline_Adjusted_Draft`. |
 | `DailySession` or `IntervalForecast` | `PublishedUserAdjustment` | `PUBLISHED_USER_ADJUSTMENT` | Combined with Projection for `Baseline_Adjusted_Published`. |
 | `DailyForecastSession` | `IsGeneratedByManager` | `IS_GENERATED_BY_MANAGER` | Used to filter `Baseline_ManagerOnly_*` variants. |
@@ -299,15 +299,15 @@ The `Value` property on `DailySession` is computed as `Projection + UserAdjustme
 
 Two SQL extracts bridge the production system's domain into flat CSVs the benchmark consumes:
 
-[snowflake/daily_actual_vs_forecast.sql](../snowflake/daily_actual_vs_forecast.sql) joins `daily_forecast_sessions` (the latest session per
+[snowflake/daily_avf.sql](../snowflake/daily_avf.sql) joins `daily_forecast_sessions` (the latest session per
 location-day, deduplicated by `created_on DESC, event_timestamp DESC`) with
 `daily_interval_forecasts` (summing interval-level `projection`, `user_adjustment`,
 and `published_user_adjustment` into daily totals) and `daily_sales_summary` (for `actual_value`).
 The extract filters to `metric_id = 1` (NetSales).
 
-[snowflake/interval_actual_vs_forecast.sql](../snowflake/interval_actual_vs_forecast.sql) joins the same `daily_forecast_sessions` with
+[snowflake/interval_avf.sql](../snowflake/interval_avf.sql) joins the same `daily_forecast_sessions` with
 `LATERAL FLATTEN` on the `interval_forecasts` BSON array to extract per-interval
-`Baseline_PROJECTION`, `UserAdjustment`, and `PublishedUserAdjustment`. Actuals come
+`BASELINE_PROJECTION`, `UserAdjustment`, and `PublishedUserAdjustment`. Actuals come
 from `sales_ticket_with_interval`, aggregated to 15-minute slots via `SUM(net_sales)`.
 `INTERVAL_ID_TICKS` is the .NET 100-nanosecond tick representation used as the join key
 between the baseline forecast intervals and the actual sales intervals.
@@ -320,20 +320,21 @@ Each pipeline's data loader validates the Snowflake contract, coerces types, and
 
 | Function | Purpose |
 | :--- | :--- |
-| `load_daily_actual_vs_forecast()` | Reads `daily_actual_vs_forecast.csv`, validates all 10 expected columns, and coerces types (`ENTITY_UID` to string, `DAY_START_TIME` to datetime, booleans for manager flags). Strips whitespace from `ENTITY_UID` and normalizes dates to midnight. |
+| `load_daily_actual_vs_forecast()` | Reads `daily_actual_vs_forecast.csv`, validates all 12 expected columns, and coerces types (`ENTITY_UID` to string, `DAY_START_TIME` to datetime, booleans for manager flags). Strips whitespace from `ENTITY_UID` and normalizes dates to midnight. |
 | `build_baseline_variants()` | Constructs 7 baseline variants by combining `PROJECTION`, `USER_ADJUSTMENT`, and `PUBLISHED_USER_ADJUSTMENT`. Filters on `PROJECTION > 0` for default variants; strict variants retain zeros. Manager-only variants additionally filter on `IS_GENERATED_BY_MANAGER = True`. Each variant is renamed to `[unique_id, ds, y]`. |
 | `build_actuals()` | Maps `[ENTITY_UID, DAY_START_TIME, ACTUAL_VALUE]` to `[unique_id, ds, y]`. Zero-actual rows are preserved; filtering is deferred to the evaluation config. |
-| `filter_eligible_locations()` | Returns composite UIDs with non-null actuals and `PROJECTION > 0`, requiring at least `TARGET_LOCATION_COUNT // 10` (30) distinct days per location. This is a lightweight Python-side guard; primary eligibility filtering happens in SQL. |
+| `drop_outlier_days()` | Removes training rows whose `(ENTITY_UID, DAY_START_TIME)` is flagged `IS_OUTLIER = True` in the extract. NULL flags are treated as False. |
 
 [interval/data_loader.py](../interval/data_loader.py)
 
 | Function | Purpose |
 | :--- | :--- |
-| `load_interval_actual_vs_forecast()` | Reads `interval_actual_vs_forecast.csv`, validates 9 expected columns, and coerces types. Fills `NULL` net sales with `0.0`, treating missing intervals as zero-sales periods. |
-| `split_train_test()` | Splits on `Baseline_PROJECTION` nullity: `NULL` becomes training data, `NOT NULL` becomes test data. Unlike the daily pipeline's date-based anchor split, the interval pipeline uses projection presence. |
-| `build_baseline_variants()` | Constructs 5 baseline variants (no manager-only variants for the interval pipeline). Fills `NULL` projections and adjustments with `0.0` before summing. Each variant is renamed to `[unique_id, ds, y]`. |
+| `load_interval_actual_vs_forecast()` | Reads `interval_actual_vs_forecast.csv`, validates 10 expected columns, and coerces types. Fills `NULL` net sales with `0.0`, treating missing intervals as zero-sales periods. |
+| `determine_test_window()` | Returns the one-week test window that ends at the last interval with a non-null `BASELINE_PROJECTION`. Unlike the daily pipeline's date-based anchor, the interval pipeline anchors on projection presence. |
+| `build_baseline_variants()` | Constructs 5 baseline variants (no manager-only variants for the interval pipeline). Drops rows with a `NULL` projection, then fills `NULL` adjustments with `0.0` before summing. Each variant is renamed to `[unique_id, ds, y]`. |
 | `build_actuals()` | Maps `[ENTITY_UID, INTERVAL_START_TS, NET_SALES]` to `[unique_id, ds, y]` from the test split only. |
 | `to_nixtla_training()` | Maps `[ENTITY_UID, INTERVAL_START_TS, NET_SALES]` to `[unique_id, ds, y]` from the training split, providing the compact schema expected by the Nixtla libraries. |
+| `drop_outlier_days()` | Removes training intervals whose business day is flagged `IS_OUTLIER = True`, using the `BUSINESS_START_HOUR_UTC` boundaries. Without the `IS_OUTLIER` column it logs a warning and returns the input unchanged. |
 
 ---
 

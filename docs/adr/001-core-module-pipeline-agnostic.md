@@ -17,8 +17,7 @@ All shared logic lives in `core/`. The `core/` module must not import from `dail
 configuration values as function arguments; `core/` never reads configuration directly.
 
 Pipeline modules (`daily/` and `interval/`) may import from `core/` freely. `core/` may not import
-from any pipeline module. Re-export shims in `daily/preprocessing.py` and `interval/preprocessing.py`
-expose `core/` functions under pipeline-local names, so callers need only import from their own package.
+from any pipeline module. Pipeline modules import `core/` functions directly; they do not re-export them.
 
 The constraint is enforced by `tests/test_architecture_constraints.py::TestCoreModulePipelineAgnostic`.
 
@@ -26,7 +25,6 @@ The constraint is enforced by `tests/test_architecture_constraints.py::TestCoreM
 
 - Adding a new shared function requires placing it in `core/` and updating callers to pass configuration values.
 - Pipeline-specific behavior is encoded at the call site, not inside the shared function.
-- `core/preprocessing.py::add_fourier_features()` uses default parameter values that reflect daily
-  pipeline conventions (105-week history, daily frequency). Interval callers must explicitly override
-  these defaults. The `create_train_test_split()` default of `max_train_history_weeks=105` is the
-  daily value; interval callers pass 26.
+- `core/preprocessing.py::add_fourier_features()` is daily-only. Its default `frequency="D"` and
+  `forecast_horizon=7` reflect daily pipeline conventions. The `create_train_test_split()` default of
+  `max_train_history_weeks=105` is the daily value; interval callers pass 26.

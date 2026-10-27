@@ -10,14 +10,9 @@ from pathlib import Path
 import pandas as pd
 
 from core.paths import PROJECT_ROOT
+from core.evaluation import build_volume_tiers
 from daily import config as daily_config
-from daily.evaluation import (
-    build_volume_tiers as daily_build_volume_tiers,
-)
 from interval import config as interval_config
-from interval.evaluation import (
-    build_volume_tiers as interval_build_volume_tiers,
-)
 from reporting.report import ReportContext, build_report
 
 from .utils import find_latest_timestamp
@@ -47,13 +42,15 @@ def parse_args() -> argparse.Namespace:
         "--prefix",
         type=str,
         default="",
-        help="File prefix override (e.g. 'daily_w2_'). Defaults to the standard prefix for the interval.",
+        help="File prefix override (e.g. 'daily_w2_'). "
+        "Defaults to the standard prefix for the interval.",
     )
     parser.add_argument(
         "--timestamp",
         type=str,
         default="",
-        help="Exact timestamp string to use (e.g. '2024_01_15_14_30'). Skips auto-detection when provided.",
+        help="Exact timestamp string to use (e.g. '2024_01_15_14_30'). "
+        "Skips auto-detection when provided.",
     )
     return parser.parse_args()
 
@@ -66,17 +63,23 @@ def _require_file(path: Path) -> Path:
     return path
 
 
+def _read_table(path: Path) -> pd.DataFrame:
+    """Read a metrics CSV, returning an empty frame for a table the run left empty."""
+    try:
+        return pd.read_csv(path)
+    except pd.errors.EmptyDataError:
+        return pd.DataFrame()
+
+
 def main() -> None:
     """Rebuild an HTML report from persisted CSVs, skipping model retraining."""
     args = parse_args()
 
     if args.interval == "daily":
         config = daily_config
-        build_volume_tiers = daily_build_volume_tiers
         default_prefix = "daily_"
     else:
         config = interval_config
-        build_volume_tiers = interval_build_volume_tiers
         default_prefix = "interval_"
 
     prefix = args.prefix if args.prefix else default_prefix
@@ -123,8 +126,15 @@ def main() -> None:
     predictions_combined = pd.read_csv(predictions_path, parse_dates=[config.NIXTLA_DS])
     location_metrics_combined = pd.read_csv(location_metrics_path)
     aggregate_metrics_combined = pd.read_csv(aggregate_metrics_path)
-    win_loss_df = pd.read_csv(win_loss_path)
-    statistical_tests_df = pd.read_csv(statistical_tests_path)
+    win_loss_df = _read_table(win_loss_path)
+    if win_loss_df.empty:
+        logger.error(
+            "%s is empty. Runs without a production baseline, such as gross_sales, "
+            "cannot be regenerated.",
+            win_loss_path.name,
+        )
+        sys.exit(1)
+    statistical_tests_df = _read_table(statistical_tests_path)
 
     all_location_metrics: dict[str, pd.DataFrame] = {
         model_name: group.drop(columns=["model"]).reset_index(drop=True)

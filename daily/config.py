@@ -34,10 +34,7 @@ SEASON_LENGTH_YEARLY = 365
 TRAIN_HISTORY_WEEKS = 105
 TEST_PERIOD_WEEKS = 1
 RANDOM_SEED = 42
-TARGET_LOCATION_COUNT = 300
-MIN_DAYS_WITH_ACTUALS = 90
 
-CLIP_OUTLIER_PERCENTILE = 99.0
 EXCLUDE_ZERO_ACTUAL_FROM_EVAL = True
 EXCLUDE_ZERO_PROJECTION_FROM_EVAL = True
 CV_NUM_WINDOWS = 3
@@ -56,16 +53,16 @@ FUTURE_EXOGENOUS_FEATURES: list[str] = [
 FOURIER_WEEKLY_K = 3
 FOURIER_YEARLY_K = 3
 
-Baseline_PRODUCTION = "Baseline_Production"
-Baseline_ADJUSTED_DRAFT = "Baseline_Adjusted_Draft"
-Baseline_ADJUSTED_PUBLISHED = "Baseline_Adjusted_Published"
-Baseline_MANAGER_ONLY_DRAFT = "Baseline_ManagerOnly_Draft"
-Baseline_MANAGER_ONLY_PUBLISHED = "Baseline_ManagerOnly_Published"
+BASELINE_PRODUCTION = "Baseline_Production"
+BASELINE_ADJUSTED_DRAFT = "Baseline_Adjusted_Draft"
+BASELINE_ADJUSTED_PUBLISHED = "Baseline_Adjusted_Published"
+BASELINE_MANAGER_ONLY_DRAFT = "Baseline_ManagerOnly_Draft"
+BASELINE_MANAGER_ONLY_PUBLISHED = "Baseline_ManagerOnly_Published"
 
-Baseline_PRODUCTION_STRICT = "Baseline_Production_Strict"
-Baseline_ADJUSTED_DRAFT_STRICT = "Baseline_Adjusted_Draft_Strict"
+BASELINE_PRODUCTION_STRICT = "Baseline_Production_Strict"
+BASELINE_ADJUSTED_DRAFT_STRICT = "Baseline_Adjusted_Draft_Strict"
 
-BASELINE_MODEL = Baseline_PRODUCTION
+BASELINE_MODEL = BASELINE_PRODUCTION
 
 STATSFORECAST_MODELS: dict[str, dict] = {
     "SeasonalNaive_D": {"season_length": SEASON_LENGTH_WEEKLY},
@@ -105,13 +102,6 @@ MLFORECAST_MODELS: dict[str, dict] = {
         "num_threads": -1,
     },
 }
-
-METRICS: list[str] = ["MAE", "WAPE", "MAPE", "RMSE"]
-STATISTICAL_TEST_CONFIDENCE = 0.95
-
-# Capacity-planning estimate, not enforced. MSTL with an AutoARIMA trend
-# can be slow when the selected ARIMA order is complex.
-ESTIMATED_MAX_TRAIN_TIME_SECONDS = 600
 
 TIMESTAMP_FORMAT = "%Y_%m_%d_%H_%M"
 

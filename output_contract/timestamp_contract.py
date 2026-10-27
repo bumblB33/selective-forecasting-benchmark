@@ -12,7 +12,9 @@ _DOWNSTREAM_EPOCH = datetime.datetime(1, 1, 1, tzinfo=datetime.timezone.utc)
 _UNIX_EPOCH = datetime.datetime(1970, 1, 1, tzinfo=datetime.timezone.utc)
 
 _TICKS_PER_SECOND: int = 10_000_000
-_TICKS_AT_UNIX_EPOCH: int = int((_UNIX_EPOCH - _DOWNSTREAM_EPOCH).total_seconds()) * _TICKS_PER_SECOND
+_TICKS_AT_UNIX_EPOCH: int = (
+    int((_UNIX_EPOCH - _DOWNSTREAM_EPOCH).total_seconds()) * _TICKS_PER_SECOND
+)
 
 _TICKS_PER_15_MINUTES: int = 15 * 60 * _TICKS_PER_SECOND
 _TICKS_PER_HOUR: int = 60 * 60 * _TICKS_PER_SECOND
@@ -40,7 +42,9 @@ def nixtla_ds_to_slot_id(utc_timestamp: pd.Timestamp) -> int:
 def nixtla_ds_to_period_id(utc_timestamp: pd.Timestamp) -> int:
     """Hourly variant of ``nixtla_ds_to_slot_id`` — floors to the hour boundary."""
     if utc_timestamp.tzinfo is None:
-        raise ValueError(f"Timestamp {utc_timestamp!r} is timezone-naive. Provide a UTC-aware timestamp.")
+        raise ValueError(
+            f"Timestamp {utc_timestamp!r} is timezone-naive. Provide a UTC-aware timestamp."
+        )
     utc_normalized = utc_timestamp.tz_convert("UTC")
     unix_seconds = int(utc_normalized.timestamp())
     total_ticks = _TICKS_AT_UNIX_EPOCH + unix_seconds * _TICKS_PER_SECOND
