@@ -19,8 +19,7 @@ except ImportError:
     HAS_MATPLOTLIB = False
 
 try:
-    from .constants import (MODEL_COLORS, MODEL_DISPLAY_NAMES, MODEL_FAMILIES,
-                            MODEL_LINESTYLES, PALETTE)
+    from .constants import MODEL_COLORS, MODEL_DISPLAY_NAMES, MODEL_FAMILIES, MODEL_LINESTYLES, PALETTE
 except ImportError:
     MODEL_COLORS = {}
     MODEL_DISPLAY_NAMES = {}
@@ -246,9 +245,7 @@ def aggregate_metric_bar_chart(
         f"{'($, lower is more accurate)' if dollar else '(lower is more accurate)'}",
         fontsize=10,
     )
-    ax.set_title(
-        f"Forecast Accuracy by Model: {metric}", fontsize=11, fontweight="bold", pad=10
-    )
+    ax.set_title(f"Forecast Accuracy by Model: {metric}", fontsize=11, fontweight="bold", pad=10)
 
     for bar, (_, row) in zip(bars, df.iterrows()):
         w = bar.get_width()
@@ -289,9 +286,7 @@ def location_forecast_line_chart(
         return ""
 
     uid_parts = unique_id.split("_", 1)
-    friendly_id = (
-        f"Location ...{uid_parts[1][:12]}" if len(uid_parts) > 1 else unique_id[:20]
-    )
+    friendly_id = f"Location ...{uid_parts[1][:12]}" if len(uid_parts) > 1 else unique_id[:20]
 
     d0 = pd.Timestamp(actual_loc[ds_col].min()).strftime(f"%b {_DAY_FMT}")
     d1 = pd.Timestamp(actual_loc[ds_col].max()).strftime(f"%b {_DAY_FMT}, %Y")
@@ -370,12 +365,8 @@ def location_forecast_line_chart_interval(
             return ""
 
     uid_parts = unique_id.split("_", 1)
-    friendly_id = (
-        f"Location ...{uid_parts[1][:12]}" if len(uid_parts) > 1 else unique_id[:20]
-    )
-    title_loc = (
-        f"{location_label}: {friendly_id}" if location_label else friendly_id
-    )
+    friendly_id = f"Location ...{uid_parts[1][:12]}" if len(uid_parts) > 1 else unique_id[:20]
+    title_loc = f"{location_label}: {friendly_id}" if location_label else friendly_id
 
     if date_filter is not None:
         title_date = pd.Timestamp(date_filter).strftime(f"%A, %b {_DAY_FMT}, %Y")
@@ -398,9 +389,7 @@ def location_forecast_line_chart_interval(
     color_cycle = list(_LINE_CHART_PALETTE)
     for i, model_name in enumerate(list(predictions_dict.keys())[:max_models]):
         pred_df = predictions_dict[model_name]
-        pred_loc = (
-            pred_df[pred_df[unique_id_col] == unique_id].sort_values(ds_col).copy()
-        )
+        pred_loc = pred_df[pred_df[unique_id_col] == unique_id].sort_values(ds_col).copy()
         if pred_loc.empty:
             continue
         pred_loc[ds_col] = pd.to_datetime(pred_loc[ds_col])
@@ -429,9 +418,7 @@ def location_forecast_line_chart_interval(
         ax.xaxis.set_major_formatter(mdates.DateFormatter(f"{_MONTH_FMT}/{_DAY_FMT}"))
         ax.xaxis.set_minor_locator(mdates.HourLocator(byhour=[6, 12, 18]))
         ax.tick_params(axis="x", which="minor", length=3, color="#bbb")
-        for day_ts in pd.date_range(
-            actual_loc[ds_col].min().normalize(), actual_loc[ds_col].max(), freq="D"
-        ):
+        for day_ts in pd.date_range(actual_loc[ds_col].min().normalize(), actual_loc[ds_col].max(), freq="D"):
             ax.axvline(day_ts, color="#ddd", linewidth=0.7, zorder=0)
         ax.set_xlabel("Date", fontsize=9)
 
@@ -535,8 +522,7 @@ def cv_metric_chart(cv_metrics_df: pd.DataFrame, metric: str = "MAE") -> str:
         )
 
     ax.set_xlabel(
-        f"Cross-validation {metric} "
-        f"{'($, lower is more consistent)' if dollar else '(lower is more consistent)'}",
+        f"Cross-validation {metric} " f"{'($, lower is more consistent)' if dollar else '(lower is more consistent)'}",
         fontsize=10,
     )
     ax.set_title(

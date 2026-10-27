@@ -35,15 +35,9 @@ def add_calendar_features(nixtla_df: pd.DataFrame) -> pd.DataFrame:
         holiday_dates = set(us_holidays.keys())
         result["is_holiday"] = dates.normalize().isin(holiday_dates).astype(int)
 
-        holiday_timestamps = pd.DatetimeIndex(
-            sorted(pd.Timestamp(d) for d in holiday_dates)
-        )
+        holiday_timestamps = pd.DatetimeIndex(sorted(pd.Timestamp(d) for d in holiday_dates))
         result["days_to_nearest_holiday"] = dates.normalize().map(
-            lambda d: (
-                int(min(abs((d - h).days) for h in holiday_timestamps))
-                if len(holiday_timestamps) > 0
-                else 0
-            )
+            lambda d: (int(min(abs((d - h).days) for h in holiday_timestamps)) if len(holiday_timestamps) > 0 else 0)
         )
         result["is_holiday_week"] = (result["days_to_nearest_holiday"] <= 3).astype(int)
     else:
@@ -64,11 +58,9 @@ def fourier_terms(
     if period_intervals == config.SEASON_LENGTH_DAILY:
         seasonal_position = (dates.hour * 4 + dates.minute // 15).astype(float)
     else:
-        seasonal_position = (
-            dates.dayofweek * config.INTERVALS_PER_DAY
-            + dates.hour * 4
-            + dates.minute // 15
-        ).astype(float)
+        seasonal_position = (dates.dayofweek * config.INTERVALS_PER_DAY + dates.hour * 4 + dates.minute // 15).astype(
+            float
+        )
     term_columns = {}
     for harmonic_number in range(1, n_harmonics + 1):
         term_columns[f"{prefix}_sin_{harmonic_number}"] = np.sin(
@@ -92,12 +84,8 @@ def add_fourier_features(
     """
     training_dates = pd.DatetimeIndex(training_df[config.NIXTLA_DS])
 
-    daily_train = fourier_terms(
-        training_dates, config.SEASON_LENGTH_DAILY, daily_k, "fourier_daily"
-    )
-    weekly_train = fourier_terms(
-        training_dates, config.SEASON_LENGTH_WEEKLY, weekly_k, "fourier_weekly"
-    )
+    daily_train = fourier_terms(training_dates, config.SEASON_LENGTH_DAILY, daily_k, "fourier_daily")
+    weekly_train = fourier_terms(training_dates, config.SEASON_LENGTH_WEEKLY, weekly_k, "fourier_weekly")
 
     fourier_columns = list(daily_train.keys()) + list(weekly_train.keys())
 

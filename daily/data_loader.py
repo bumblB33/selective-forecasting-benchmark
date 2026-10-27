@@ -57,9 +57,7 @@ def load_daily_actual_vs_forecast(path: str | Path | None = None) -> pd.DataFram
         parse_dates=[config.COL_DAY_START_TIME],
     )
 
-    missing_columns = _EXPECTED_DAILY_ACTUAL_VS_FORECAST_COLUMNS - set(
-        actual_vs_forecast_df.columns
-    )
+    missing_columns = _EXPECTED_DAILY_ACTUAL_VS_FORECAST_COLUMNS - set(actual_vs_forecast_df.columns)
     if missing_columns:
         raise ValueError(
             f"daily_actual_vs_forecast.csv is missing expected columns: {sorted(missing_columns)}\n"
@@ -67,9 +65,7 @@ def load_daily_actual_vs_forecast(path: str | Path | None = None) -> pd.DataFram
             "data/input/daily_actual_vs_forecast.csv"
         )
 
-    absent_optional = _OPTIONAL_DAILY_ACTUAL_VS_FORECAST_COLUMNS - set(
-        actual_vs_forecast_df.columns
-    )
+    absent_optional = _OPTIONAL_DAILY_ACTUAL_VS_FORECAST_COLUMNS - set(actual_vs_forecast_df.columns)
     if absent_optional:
         logger.warning(
             "daily_actual_vs_forecast.csv is missing optional columns %s. "
@@ -78,12 +74,8 @@ def load_daily_actual_vs_forecast(path: str | Path | None = None) -> pd.DataFram
             sorted(absent_optional),
         )
 
-    actual_vs_forecast_df[config.COL_ENTITY_UID] = actual_vs_forecast_df[
-        config.COL_ENTITY_UID
-    ].str.strip()
-    actual_vs_forecast_df[config.COL_DAY_START_TIME] = actual_vs_forecast_df[
-        config.COL_DAY_START_TIME
-    ].dt.normalize()
+    actual_vs_forecast_df[config.COL_ENTITY_UID] = actual_vs_forecast_df[config.COL_ENTITY_UID].str.strip()
+    actual_vs_forecast_df[config.COL_DAY_START_TIME] = actual_vs_forecast_df[config.COL_DAY_START_TIME].dt.normalize()
 
     initial_row_count = len(actual_vs_forecast_df)
     actual_vs_forecast_df = actual_vs_forecast_df.drop_duplicates(
@@ -132,28 +124,20 @@ def build_baseline_variants(
 
     actual_vs_forecast_df = actual_vs_forecast_df.copy()
     actual_vs_forecast_df[adjusted_draft_column] = (
-        actual_vs_forecast_df[config.COL_PROJECTION]
-        + actual_vs_forecast_df[config.COL_USER_ADJUSTMENT]
+        actual_vs_forecast_df[config.COL_PROJECTION] + actual_vs_forecast_df[config.COL_USER_ADJUSTMENT]
     )
     actual_vs_forecast_df[adjusted_published_column] = (
-        actual_vs_forecast_df[config.COL_PROJECTION]
-        + actual_vs_forecast_df[config.COL_PUBLISHED_USER_ADJUSTMENT]
+        actual_vs_forecast_df[config.COL_PROJECTION] + actual_vs_forecast_df[config.COL_PUBLISHED_USER_ADJUSTMENT]
     )
 
     if config.EXCLUDE_ZERO_PROJECTION_FROM_EVAL:
         baseline_filter = actual_vs_forecast_df[config.COL_PROJECTION] > 0
     else:
-        baseline_filter = pd.Series(
-            [True] * len(actual_vs_forecast_df), index=actual_vs_forecast_df.index
-        )
+        baseline_filter = pd.Series([True] * len(actual_vs_forecast_df), index=actual_vs_forecast_df.index)
 
     baselines = {
-        config.BASELINE_PRODUCTION: _to_nixtla(
-            actual_vs_forecast_df[baseline_filter], config.COL_PROJECTION
-        ),
-        config.BASELINE_ADJUSTED_DRAFT: _to_nixtla(
-            actual_vs_forecast_df[baseline_filter], adjusted_draft_column
-        ),
+        config.BASELINE_PRODUCTION: _to_nixtla(actual_vs_forecast_df[baseline_filter], config.COL_PROJECTION),
+        config.BASELINE_ADJUSTED_DRAFT: _to_nixtla(actual_vs_forecast_df[baseline_filter], adjusted_draft_column),
         config.BASELINE_ADJUSTED_PUBLISHED: _to_nixtla(
             actual_vs_forecast_df[baseline_filter], adjusted_published_column
         ),
@@ -165,12 +149,8 @@ def build_baseline_variants(
             actual_vs_forecast_df[baseline_filter & is_manager_generated],
             adjusted_published_column,
         ),
-        config.BASELINE_PRODUCTION_STRICT: _to_nixtla(
-            actual_vs_forecast_df, config.COL_PROJECTION
-        ),
-        config.BASELINE_ADJUSTED_DRAFT_STRICT: _to_nixtla(
-            actual_vs_forecast_df, adjusted_draft_column
-        ),
+        config.BASELINE_PRODUCTION_STRICT: _to_nixtla(actual_vs_forecast_df, config.COL_PROJECTION),
+        config.BASELINE_ADJUSTED_DRAFT_STRICT: _to_nixtla(actual_vs_forecast_df, adjusted_draft_column),
     }
 
     return baselines
@@ -295,16 +275,10 @@ def determine_anchor_date(actual_vs_forecast_df: pd.DataFrame) -> pd.Timestamp:
     return pd.Timestamp(projected_actual_rows[config.COL_DAY_START_TIME].max())
 
 
-def summarize_actual_vs_forecast_data(
-    actual_vs_forecast_df: pd.DataFrame, location_ids: list[str]
-) -> dict:
+def summarize_actual_vs_forecast_data(actual_vs_forecast_df: pd.DataFrame, location_ids: list[str]) -> dict:
     """Coverage summary (counts, date range, median days/location) for logging."""
-    location_subset = actual_vs_forecast_df[
-        actual_vs_forecast_df[config.COL_ENTITY_UID].isin(location_ids)
-    ]
-    days_per_location = location_subset.groupby(config.COL_ENTITY_UID)[
-        config.COL_DAY_START_TIME
-    ].nunique()
+    location_subset = actual_vs_forecast_df[actual_vs_forecast_df[config.COL_ENTITY_UID].isin(location_ids)]
+    days_per_location = location_subset.groupby(config.COL_ENTITY_UID)[config.COL_DAY_START_TIME].nunique()
     return {
         "n_locations": len(location_ids),
         "n_rows": len(location_subset),

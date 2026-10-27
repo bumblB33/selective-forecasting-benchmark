@@ -31,9 +31,7 @@ def fill_missing_timesteps(
     completed_series_parts = []
     for unique_id, location_history in nixtla_df.groupby(_NIXTLA_UNIQUE_ID):
         if deduplicate:
-            location_history = location_history.drop_duplicates(
-                subset=[_NIXTLA_DS], keep="first"
-            )
+            location_history = location_history.drop_duplicates(subset=[_NIXTLA_DS], keep="first")
         full_range = pd.date_range(
             start=location_history[_NIXTLA_DS].min(),
             end=location_history[_NIXTLA_DS].max(),
@@ -64,13 +62,10 @@ def create_train_test_split(
     training_window_start = test_start - pd.Timedelta(weeks=max_train_history_weeks)
 
     training_df = nixtla_df[
-        (nixtla_df[_NIXTLA_DS] >= training_window_start)
-        & (nixtla_df[_NIXTLA_DS] < test_start)
+        (nixtla_df[_NIXTLA_DS] >= training_window_start) & (nixtla_df[_NIXTLA_DS] < test_start)
     ].copy()
 
-    test_df = nixtla_df[
-        (nixtla_df[_NIXTLA_DS] >= test_start) & (nixtla_df[_NIXTLA_DS] <= test_end)
-    ].copy()
+    test_df = nixtla_df[(nixtla_df[_NIXTLA_DS] >= test_start) & (nixtla_df[_NIXTLA_DS] <= test_end)].copy()
 
     logger.info(
         "Train: %d rows (%d locations) | Test: %d rows (%d locations)",
@@ -100,20 +95,12 @@ def add_calendar_features(nixtla_df: pd.DataFrame) -> pd.DataFrame:
         unique_names = sorted(set(holiday_names.values()))
         name_to_code = {name: idx + 1 for idx, name in enumerate(unique_names)}
         result["holiday_name_encoded"] = (
-            dates.normalize()
-            .map(lambda d: name_to_code.get(holiday_names.get(d.date(), ""), 0))
-            .astype(int)
+            dates.normalize().map(lambda d: name_to_code.get(holiday_names.get(d.date(), ""), 0)).astype(int)
         )
 
-        holiday_timestamps = pd.DatetimeIndex(
-            sorted(pd.Timestamp(d) for d in holiday_dates)
-        )
+        holiday_timestamps = pd.DatetimeIndex(sorted(pd.Timestamp(d) for d in holiday_dates))
         result["days_to_nearest_holiday"] = dates.normalize().map(
-            lambda d: int(
-                min(abs((d - h).days) for h in holiday_timestamps)
-                if len(holiday_timestamps) > 0
-                else 0
-            )
+            lambda d: int(min(abs((d - h).days) for h in holiday_timestamps) if len(holiday_timestamps) > 0 else 0)
         )
         result["is_holiday_week"] = (result["days_to_nearest_holiday"] <= 3).astype(int)
     else:
@@ -149,17 +136,11 @@ def add_fourier_features(
         f"(interval pipeline) before this function to ensure uniform endpoints."
     )
 
-    def _fourier_terms(
-        dates: pd.DatetimeIndex, period: float, n_harmonics: int, prefix: str
-    ) -> pd.DataFrame:
+    def _fourier_terms(dates: pd.DatetimeIndex, period: float, n_harmonics: int, prefix: str) -> pd.DataFrame:
         # Weekly cycle is anchored to Monday via day-of-week; yearly uses
         # fractional day-of-year. Any per-location phase offset is small relative
         # to the 7-day period and absorbed by the LightGBM lag features.
-        seasonal_position = (
-            (dates.dayofyear + dates.hour / 24.0)
-            if period > 7
-            else dates.dayofweek.astype(float)
-        )
+        seasonal_position = (dates.dayofyear + dates.hour / 24.0) if period > 7 else dates.dayofweek.astype(float)
         term_columns = {}
         for harmonic_number in range(1, n_harmonics + 1):
             term_columns[f"{prefix}_sin_{harmonic_number}"] = np.sin(
@@ -179,25 +160,15 @@ def add_fourier_features(
         freq=frequency,
     )
 
-    weekly_train = _fourier_terms(
-        training_dates, period=7.0, n_harmonics=weekly_k, prefix="fourier_weekly"
-    )
-    yearly_train = _fourier_terms(
-        training_dates, period=365.25, n_harmonics=yearly_k, prefix="fourier_yearly"
-    )
-    weekly_future = _fourier_terms(
-        future_dates, period=7.0, n_harmonics=weekly_k, prefix="fourier_weekly"
-    )
-    yearly_future = _fourier_terms(
-        future_dates, period=365.25, n_harmonics=yearly_k, prefix="fourier_yearly"
-    )
+    weekly_train = _fourier_terms(training_dates, period=7.0, n_harmonics=weekly_k, prefix="fourier_weekly")
+    yearly_train = _fourier_terms(training_dates, period=365.25, n_harmonics=yearly_k, prefix="fourier_yearly")
+    weekly_future = _fourier_terms(future_dates, period=7.0, n_harmonics=weekly_k, prefix="fourier_weekly")
+    yearly_future = _fourier_terms(future_dates, period=365.25, n_harmonics=yearly_k, prefix="fourier_yearly")
 
     fourier_columns = list(weekly_train.columns) + list(yearly_train.columns)
 
     result = training_df.copy().reset_index(drop=True)
-    fourier_train_df = pd.concat([weekly_train, yearly_train], axis=1).reset_index(
-        drop=True
-    )
+    fourier_train_df = pd.concat([weekly_train, yearly_train], axis=1).reset_index(drop=True)
     for column in fourier_columns:
         result[column] = fourier_train_df[column].values
 

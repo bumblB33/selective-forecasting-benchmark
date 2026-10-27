@@ -56,13 +56,9 @@ MODEL_DESCRIPTIONS: dict[str, str] = {
     "DOT_D": "Dynamic Optimised Theta; ensemble of Theta models with optimal damping.",
     "LightGBM_D_Fast": "LightGBM with shallow trees; lowest latency, reduced accuracy.",
     "LightGBM_D_Standard": "LightGBM with balanced tree depth and learning rate.",
-    "LightGBM_D_Accuracy": (
-        "LightGBM with deeper trees and slow learning rate for maximum accuracy."
-    ),
+    "LightGBM_D_Accuracy": ("LightGBM with deeper trees and slow learning rate for maximum accuracy."),
     "SeasonalNaive": "Repeats the corresponding 15-min slot from the previous week.",
-    "MSTL": (
-        "Multi-Seasonal Trend decomposition with daily (96-slot) and weekly (672-slot) seasons."
-    ),
+    "MSTL": ("Multi-Seasonal Trend decomposition with daily (96-slot) and weekly (672-slot) seasons."),
     "AutoETS": "Automatic ETS with 96-slot daily seasonality.",
     "LightGBM_Fast": "LightGBM with Fourier features; low-latency interval model.",
     "LightGBM_Standard": "LightGBM with Fourier features; balanced depth interval model.",
@@ -71,9 +67,7 @@ MODEL_DESCRIPTIONS: dict[str, str] = {
     "Baseline_Adjusted_Draft": "Baseline projection plus manager draft adjustment.",
     "Baseline_Adjusted_Published": "Baseline projection plus published manager adjustment.",
     "Baseline_ManagerOnly_Draft": "Rows where the manager manually authored a draft projection.",
-    "Baseline_ManagerOnly_Published": (
-        "Rows where the manager manually authored a published projection."
-    ),
+    "Baseline_ManagerOnly_Published": ("Rows where the manager manually authored a published projection."),
     "Baseline_Production_Strict": (
         "The same Baseline forecast as Baseline Production, but graded on more days, "
         "including days where Baseline produced a $0 projection. On an operating day, "

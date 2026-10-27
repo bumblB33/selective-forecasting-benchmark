@@ -25,9 +25,7 @@ METRIC_FILE_TYPES = [
     "statistical_tests",
     "cv_metrics",
 ]
-NON_NUMERIC_COLUMNS = frozenset(
-    {"model", "unique_id", "ds", "direction", "metric", "cutoff"}
-)
+NON_NUMERIC_COLUMNS = frozenset({"model", "unique_id", "ds", "direction", "metric", "cutoff"})
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,9 +34,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def _load_metric_files(
-    metrics_dir: Path, prefix: str, timestamp: str
-) -> dict[str, pd.DataFrame]:
+def _load_metric_files(metrics_dir: Path, prefix: str, timestamp: str) -> dict[str, pd.DataFrame]:
     """Load every metric CSV matching the prefix and timestamp."""
     result: dict[str, pd.DataFrame] = {}
     for file_type in METRIC_FILE_TYPES:
@@ -52,22 +48,14 @@ def _load_metric_files(
 
 def _numeric_columns(df: pd.DataFrame) -> list[str]:
     """Numeric columns eligible for tolerance comparison."""
-    return [
-        col
-        for col in df.columns
-        if col not in NON_NUMERIC_COLUMNS and pd.api.types.is_numeric_dtype(df[col])
-    ]
+    return [col for col in df.columns if col not in NON_NUMERIC_COLUMNS and pd.api.types.is_numeric_dtype(df[col])]
 
 
 def _stable_sort_key_columns(df: pd.DataFrame) -> list[str]:
     """Sort keys that produce a canonical row order, avoiding false-positive
     failures from non-deterministic row ordering between runs.
     """
-    return [
-        col
-        for col in ("model", "unique_id", "metric", "cutoff", "direction")
-        if col in df.columns
-    ]
+    return [col for col in ("model", "unique_id", "metric", "cutoff", "direction") if col in df.columns]
 
 
 def _compare_dataframes(name: str, df_a: pd.DataFrame, df_b: pd.DataFrame) -> int:
@@ -121,8 +109,7 @@ def _compare_dataframes(name: str, df_a: pd.DataFrame, df_b: pd.DataFrame) -> in
             exceeded = (abs_diff > TOLERANCE) & (rel_diff > RELATIVE_TOLERANCE)
             if exceeded.any():
                 all_exceeded = (np.abs(a_vals - b_vals) > TOLERANCE) & (
-                    (np.abs(a_vals - b_vals) / (np.abs(b_vals) + 1e-10))
-                    > RELATIVE_TOLERANCE
+                    (np.abs(a_vals - b_vals) / (np.abs(b_vals) + 1e-10)) > RELATIVE_TOLERANCE
                 )
                 bad_idx = int(np.where(all_exceeded)[0][0])
                 n_bad = int(exceeded.sum())
@@ -168,9 +155,7 @@ def _compare_metric_sets(
         if file_type not in set_b:
             logger.warning("[%s] Missing in %s; skipping", file_type, label_b)
             continue
-        total_failures += _compare_dataframes(
-            file_type, set_a[file_type], set_b[file_type]
-        )
+        total_failures += _compare_dataframes(file_type, set_a[file_type], set_b[file_type])
     return total_failures
 
 
@@ -201,9 +186,7 @@ def _check(metrics_dir: Path, prefix: str, timestamp: str) -> None:
     """Diff the latest run against the golden snapshot; exits non-zero on drift."""
     golden_prefix_dir = GOLDEN_DIR / prefix.rstrip("_")
     if not golden_prefix_dir.exists():
-        logger.error(
-            "No golden snapshot found at %s. Run 'generate' first.", golden_prefix_dir
-        )
+        logger.error("No golden snapshot found at %s. Run 'generate' first.", golden_prefix_dir)
         sys.exit(2)
 
     golden: dict[str, pd.DataFrame] = {}
@@ -227,16 +210,12 @@ def _check(metrics_dir: Path, prefix: str, timestamp: str) -> None:
     logger.info("PARITY CHECK PASSED: run '%s' matches golden snapshot", timestamp)
 
 
-def _smoke_test(
-    metrics_dir: Path, prefix: str, timestamp_a: str, timestamp_b: str
-) -> None:
+def _smoke_test(metrics_dir: Path, prefix: str, timestamp_a: str, timestamp_b: str) -> None:
     """Diff two timestamped runs directly; exits non-zero on drift."""
     set_a = _load_metric_files(metrics_dir, prefix, timestamp_a)
     set_b = _load_metric_files(metrics_dir, prefix, timestamp_b)
 
-    failures = _compare_metric_sets(
-        f"run:{timestamp_a}", f"run:{timestamp_b}", set_a, set_b
-    )
+    failures = _compare_metric_sets(f"run:{timestamp_a}", f"run:{timestamp_b}", set_a, set_b)
     if failures:
         logger.error(
             "SMOKE TEST FAILED: %d column(s) drifted between %s and %s",
@@ -245,9 +224,7 @@ def _smoke_test(
             timestamp_b,
         )
         sys.exit(1)
-    logger.info(
-        "SMOKE TEST PASSED: runs '%s' and '%s' are equivalent", timestamp_a, timestamp_b
-    )
+    logger.info("SMOKE TEST PASSED: runs '%s' and '%s' are equivalent", timestamp_a, timestamp_b)
 
 
 def parse_args() -> argparse.Namespace:
