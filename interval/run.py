@@ -91,9 +91,7 @@ def main() -> None:
         level=logging.INFO,
         format="%(asctime)s  %(name)-30s  %(levelname)-7s  %(message)s",
         handlers=[
-            logging.FileHandler(
-                os.path.join(PROJECT_ROOT, "logs", "interval_benchmark.log"), mode="w"
-            ),
+            logging.FileHandler(os.path.join(PROJECT_ROOT, "logs", "interval_benchmark.log"), mode="w"),
             logging.StreamHandler(),
         ],
     )
@@ -120,9 +118,7 @@ def main() -> None:
             "business-day-aware behavior."
         )
 
-    nixtla_full = to_nixtla_training(
-        actual_vs_forecast_df, target_column=metric_config.actuals_column
-    )
+    nixtla_full = to_nixtla_training(actual_vs_forecast_df, target_column=metric_config.actuals_column)
     nixtla_full = fill_missing_intervals(nixtla_full)
     nixtla_full = add_calendar_features(nixtla_full)
 
@@ -147,15 +143,12 @@ def main() -> None:
     )
     if not metric_config.has_baseline:
         logger.info(
-            "%s benchmark: no production baseline available; "
-            "win/loss and statistical tests will be skipped.",
+            "%s benchmark: no production baseline available; " "win/loss and statistical tests will be skipped.",
             metric_config.display_label,
         )
 
     actuals = build_actuals(test_actual_vs_forecast, target_column=metric_config.actuals_column)
-    actuals_strict = build_actuals_strict(
-        test_actual_vs_forecast, target_column=metric_config.actuals_column
-    )
+    actuals_strict = build_actuals_strict(test_actual_vs_forecast, target_column=metric_config.actuals_column)
 
     if not args.no_sf:
         predictions.update(run_statsforecast(nixtla_training))
@@ -172,14 +165,10 @@ def main() -> None:
     if not args.no_cv:
         sf_cv = run_statsforecast_cv(nixtla_training) if not args.no_sf else pd.DataFrame()
         ml_cv = (
-            run_mlforecast_cv(nixtla_training, fourier_columns=fourier_columns)
-            if not args.no_ml
-            else pd.DataFrame()
+            run_mlforecast_cv(nixtla_training, fourier_columns=fourier_columns) if not args.no_ml else pd.DataFrame()
         )
         if not sf_cv.empty or not ml_cv.empty:
-            combined_cv = pd.concat(
-                [df for df in [sf_cv, ml_cv] if not df.empty], ignore_index=True
-            )
+            combined_cv = pd.concat([df for df in [sf_cv, ml_cv] if not df.empty], ignore_index=True)
             cv_metrics_df = compute_cv_metrics(
                 combined_cv,
                 exclude_zero_actuals=config.EXCLUDE_ZERO_ACTUAL_FROM_EVAL,
@@ -217,9 +206,7 @@ def main() -> None:
 
     volume_tiers = build_volume_tiers(actuals)
 
-    metric_prefix = (
-        f"{metric_config.metric_name}_" if metric_config.metric_name != "net_sales" else ""
-    )
+    metric_prefix = f"{metric_config.metric_name}_" if metric_config.metric_name != "net_sales" else ""
     save_metrics(
         all_location_metrics=all_location_metrics,
         aggregate_metrics_df=combine_aggregate_metrics(aggregate_metrics_dict),

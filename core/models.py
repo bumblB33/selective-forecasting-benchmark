@@ -53,8 +53,4 @@ def derive_available_exog(
         for feat in model_cfg.get("date_features", [])
         if isinstance(feat, str)
     }
-    return [
-        col
-        for col in all_exog_columns
-        if col in training_df.columns and col not in mlforecast_date_features
-    ]
+    return [col for col in all_exog_columns if col in training_df.columns and col not in mlforecast_date_features]

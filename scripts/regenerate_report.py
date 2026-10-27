@@ -42,15 +42,13 @@ def parse_args() -> argparse.Namespace:
         "--prefix",
         type=str,
         default="",
-        help="File prefix override (e.g. 'daily_w2_'). "
-        "Defaults to the standard prefix for the interval.",
+        help="File prefix override (e.g. 'daily_w2_'). " "Defaults to the standard prefix for the interval.",
     )
     parser.add_argument(
         "--timestamp",
         type=str,
         default="",
-        help="Exact timestamp string to use (e.g. '2024_01_15_14_30'). "
-        "Skips auto-detection when provided.",
+        help="Exact timestamp string to use (e.g. '2024_01_15_14_30'). " "Skips auto-detection when provided.",
     )
     return parser.parse_args()
 
@@ -101,24 +99,14 @@ def main() -> None:
     logger.info("Regenerating report for prefix='%s' timestamp='%s'", prefix, timestamp)
 
     actuals_path = _require_file(metrics_dir / f"{prefix}actuals_{timestamp}.csv")
-    predictions_path = _require_file(
-        metrics_dir / f"{prefix}predictions_{timestamp}.csv"
-    )
-    location_metrics_path = _require_file(
-        metrics_dir / f"{prefix}location_metrics_{timestamp}.csv"
-    )
-    aggregate_metrics_path = _require_file(
-        metrics_dir / f"{prefix}aggregate_metrics_{timestamp}.csv"
-    )
+    predictions_path = _require_file(metrics_dir / f"{prefix}predictions_{timestamp}.csv")
+    location_metrics_path = _require_file(metrics_dir / f"{prefix}location_metrics_{timestamp}.csv")
+    aggregate_metrics_path = _require_file(metrics_dir / f"{prefix}aggregate_metrics_{timestamp}.csv")
     win_loss_path = _require_file(metrics_dir / f"{prefix}win_loss_{timestamp}.csv")
-    statistical_tests_path = _require_file(
-        metrics_dir / f"{prefix}statistical_tests_{timestamp}.csv"
-    )
+    statistical_tests_path = _require_file(metrics_dir / f"{prefix}statistical_tests_{timestamp}.csv")
 
     cv_metrics_path = metrics_dir / f"{prefix}cv_metrics_{timestamp}.csv"
-    cv_metrics_df = (
-        pd.read_csv(cv_metrics_path) if cv_metrics_path.exists() else pd.DataFrame()
-    )
+    cv_metrics_df = pd.read_csv(cv_metrics_path) if cv_metrics_path.exists() else pd.DataFrame()
 
     # actuals_strict is persisted but not consumed here — strict-variant metrics
     # are already captured in all_location_metrics.
@@ -129,8 +117,7 @@ def main() -> None:
     win_loss_df = _read_table(win_loss_path)
     if win_loss_df.empty:
         logger.error(
-            "%s is empty. Runs without a production baseline, such as gross_sales, "
-            "cannot be regenerated.",
+            "%s is empty. Runs without a production baseline, such as gross_sales, " "cannot be regenerated.",
             win_loss_path.name,
         )
         sys.exit(1)
@@ -154,9 +141,7 @@ def main() -> None:
     n_locations = actuals[config.NIXTLA_UNIQUE_ID].nunique()
     test_start = actuals[config.NIXTLA_DS].min()
     test_end = actuals[config.NIXTLA_DS].max()
-    cv_num_windows = (
-        int(cv_metrics_df["n_windows"].iloc[0]) if not cv_metrics_df.empty else None
-    )
+    cv_num_windows = int(cv_metrics_df["n_windows"].iloc[0]) if not cv_metrics_df.empty else None
     volume_tiers = build_volume_tiers(actuals)
 
     report_context = ReportContext(

@@ -31,9 +31,8 @@ class TestCoreModulePipelineAgnostic:
                 if pattern in content:
                     violations.append(f"{py_file.name}: found '{pattern}'")
 
-        assert not violations, (
-            "core/ must remain pipeline-agnostic. Found violations:\n"
-            + "\n".join(f"  - {v}" for v in violations)
+        assert not violations, "core/ must remain pipeline-agnostic. Found violations:\n" + "\n".join(
+            f"  - {v}" for v in violations
         )
 
 
@@ -88,9 +87,7 @@ class TestWAPEDenominatorBehavior:
         standard_wape3 = (actuals3 - predictions3).abs().sum() / actuals3.sum()
 
         pos_mask = actuals3 > 0
-        our_wape3 = (
-            (actuals3[pos_mask] - predictions3[pos_mask]).abs().sum() / actuals3[pos_mask].sum()
-        )
+        our_wape3 = (actuals3[pos_mask] - predictions3[pos_mask]).abs().sum() / actuals3[pos_mask].sum()
 
         assert standard_wape3 == 1.60
         assert our_wape3 == 0.10
@@ -101,12 +98,8 @@ class TestArchitectureDecisionRecords:
     """Guard against ADR-reference rot: referenced ADRs must exist and have content."""
 
     _ADRS = {
-        "docs/adr/001-core-module-pipeline-agnostic.md": (
-            "ADR 001 documents the core/ pipeline-agnostic constraint."
-        ),
-        "docs/adr/002-wape-denominator-positive-actuals.md": (
-            "ADR 002 documents the WAPE denominator convention."
-        ),
+        "docs/adr/001-core-module-pipeline-agnostic.md": ("ADR 001 documents the core/ pipeline-agnostic constraint."),
+        "docs/adr/002-wape-denominator-positive-actuals.md": ("ADR 002 documents the WAPE denominator convention."),
         "docs/adr/003-training-pool-evaluation-strategy.md": (
             "ADR 003 documents the natural-train / fixed-eval ablation strategy."
         ),

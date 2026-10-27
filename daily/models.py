@@ -31,9 +31,7 @@ def _build_statsforecast_models() -> list:
         return MSTL(**kwargs)
 
     model_factories = {
-        "SeasonalNaive_D": lambda cfg: SeasonalNaive(
-            season_length=cfg["season_length"]
-        ),
+        "SeasonalNaive_D": lambda cfg: SeasonalNaive(season_length=cfg["season_length"]),
         "MSTL_D": _make_mstl,
         "AutoETS_D": lambda cfg: AutoETS(
             season_length=cfg["season_length"],
@@ -60,11 +58,7 @@ def _build_lag_transforms(model_name: str) -> dict:
 
     lag_transforms = {
         1: [ExpandingMean()],
-        config.SEASON_LENGTH_WEEKLY: [
-            SeasonalRollingMean(
-                season_length=config.SEASON_LENGTH_WEEKLY, window_size=8
-            )
-        ],
+        config.SEASON_LENGTH_WEEKLY: [SeasonalRollingMean(season_length=config.SEASON_LENGTH_WEEKLY, window_size=8)],
     }
     if model_name == "LightGBM_D_Accuracy":
         lag_transforms[28] = [RollingMean(window_size=4)]
@@ -76,9 +70,7 @@ def _build_mlforecast_model(model_name: str, model_cfg: dict):
     from lightgbm import LGBMRegressor
 
     lgbm_kwargs = {
-        key: value
-        for key, value in model_cfg.items()
-        if key not in ("lags", "date_features", "num_threads")
+        key: value for key, value in model_cfg.items() if key not in ("lags", "date_features", "num_threads")
     }
     return LGBMRegressor(**lgbm_kwargs, verbose=-1, random_state=config.RANDOM_SEED)
 
@@ -94,9 +86,7 @@ def run_statsforecast(
     if not models:
         return {}
 
-    core_train = training_df[
-        [config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]
-    ].copy()
+    core_train = training_df[[config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]].copy()
 
     sf = StatsForecast(
         models=models,
@@ -125,9 +115,7 @@ def run_statsforecast(
     _cleanup_memory()
 
     meta_columns = {config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS}
-    model_columns = [
-        column for column in predictions.columns if column not in meta_columns
-    ]
+    model_columns = [column for column in predictions.columns if column not in meta_columns]
 
     results = {}
     for column in model_columns:
@@ -146,18 +134,13 @@ def _filter_short_series_for_cv(df: pd.DataFrame) -> pd.DataFrame:
     configured lags so it tracks any change to ``MLFORECAST_MODELS``.
     """
     max_lag = max(max(cfg["lags"]) for cfg in config.MLFORECAST_MODELS.values())
-    min_length = (
-        max_lag
-        + (config.CV_NUM_WINDOWS - 1) * config.CV_STEP_SIZE
-        + config.FORECAST_HORIZON
-    )
+    min_length = max_lag + (config.CV_NUM_WINDOWS - 1) * config.CV_STEP_SIZE + config.FORECAST_HORIZON
     lengths = df.groupby(config.NIXTLA_UNIQUE_ID)[config.NIXTLA_DS].count()
     eligible = lengths[lengths >= min_length].index
     dropped = len(lengths) - len(eligible)
     if dropped:
         logger.warning(
-            "CV: dropping %d/%d series with fewer than %d days "
-            "(max_lag=%d, n_windows=%d, step_size=%d, h=%d)",
+            "CV: dropping %d/%d series with fewer than %d days " "(max_lag=%d, n_windows=%d, step_size=%d, h=%d)",
             dropped,
             len(lengths),
             min_length,
@@ -180,9 +163,7 @@ def run_statsforecast_cv(
     if not models:
         return pd.DataFrame()
 
-    core_train = _filter_short_series_for_cv(
-        training_df[[config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]]
-    )
+    core_train = _filter_short_series_for_cv(training_df[[config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]])
     if core_train.empty:
         return pd.DataFrame()
 
@@ -230,9 +211,7 @@ def run_mlforecast(
     from mlforecast import MLForecast
 
     all_exog_columns = list(config.FUTURE_EXOGENOUS_FEATURES) + (fourier_columns or [])
-    available_exog = derive_available_exog(
-        training_df, all_exog_columns, config.MLFORECAST_MODELS
-    )
+    available_exog = derive_available_exog(training_df, all_exog_columns, config.MLFORECAST_MODELS)
 
     results: dict[str, pd.DataFrame] = {}
 
@@ -245,9 +224,7 @@ def run_mlforecast(
             config.NIXTLA_DS,
             config.NIXTLA_Y,
         ] + available_exog
-        core_train = training_df[
-            [c for c in core_columns if c in training_df.columns]
-        ].copy()
+        core_train = training_df[[c for c in core_columns if c in training_df.columns]].copy()
 
         model = _build_mlforecast_model(model_name, model_cfg)
         fcst = MLForecast(
@@ -298,15 +275,13 @@ def _build_aligned_mlforecast_xdf(
 
     if future_exog_df is not None:
         missing_columns = [
-            column
-            for column in exog_columns
-            if column not in expected_df.columns and column in future_exog_df.columns
+            column for column in exog_columns if column not in expected_df.columns and column in future_exog_df.columns
         ]
         if missing_columns:
             # add_fourier_features asserts a shared end date, so merging on ds alone is safe.
-            deduplicated_future_exog = future_exog_df[
-                [config.NIXTLA_DS] + missing_columns
-            ].drop_duplicates(subset=[config.NIXTLA_DS])
+            deduplicated_future_exog = future_exog_df[[config.NIXTLA_DS] + missing_columns].drop_duplicates(
+                subset=[config.NIXTLA_DS]
+            )
             expected_df = expected_df.merge(
                 deduplicated_future_exog,
                 on=config.NIXTLA_DS,
@@ -331,9 +306,7 @@ def run_mlforecast_cv(
     from mlforecast import MLForecast
 
     all_exog_columns = list(config.FUTURE_EXOGENOUS_FEATURES) + (fourier_columns or [])
-    available_exog = derive_available_exog(
-        training_df, all_exog_columns, config.MLFORECAST_MODELS
-    )
+    available_exog = derive_available_exog(training_df, all_exog_columns, config.MLFORECAST_MODELS)
 
     all_cv_parts: list[pd.DataFrame] = []
 
@@ -346,9 +319,7 @@ def run_mlforecast_cv(
             config.NIXTLA_DS,
             config.NIXTLA_Y,
         ] + available_exog
-        core_train = _filter_short_series_for_cv(
-            training_df[[c for c in core_columns if c in training_df.columns]]
-        )
+        core_train = _filter_short_series_for_cv(training_df[[c for c in core_columns if c in training_df.columns]])
         if core_train.empty:
             continue
 
@@ -371,9 +342,7 @@ def run_mlforecast_cv(
         ).reset_index(drop=True)
 
         all_cv_parts.append(cv_result)
-        logger.info(
-            "%s CV completed in %.1fs", model_name, round(time.time() - started_at, 1)
-        )
+        logger.info("%s CV completed in %.1fs", model_name, round(time.time() - started_at, 1))
         del fcst
         _cleanup_memory()
 

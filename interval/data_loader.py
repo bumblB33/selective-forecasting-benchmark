@@ -167,13 +167,12 @@ def build_baseline_variants(test_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
             .reset_index(drop=True)
         )
 
-    test_df[adjusted_draft_column] = (
-        test_df[config.COL_BASELINE_PROJECTION] + test_df[config.COL_USER_ADJUSTMENT].fillna(0.0)
-    )
-    test_df[adjusted_published_column] = (
-        test_df[config.COL_BASELINE_PROJECTION]
-        + test_df[config.COL_PUBLISHED_USER_ADJUSTMENT].fillna(0.0)
-    )
+    test_df[adjusted_draft_column] = test_df[config.COL_BASELINE_PROJECTION] + test_df[
+        config.COL_USER_ADJUSTMENT
+    ].fillna(0.0)
+    test_df[adjusted_published_column] = test_df[config.COL_BASELINE_PROJECTION] + test_df[
+        config.COL_PUBLISHED_USER_ADJUSTMENT
+    ].fillna(0.0)
 
     if config.EXCLUDE_ZERO_PROJECTION_FROM_EVAL:
         baseline_filter = test_df[config.COL_BASELINE_PROJECTION] > 0
@@ -181,13 +180,9 @@ def build_baseline_variants(test_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
         baseline_filter = pd.Series([True] * len(test_df), index=test_df.index)
 
     return {
-        config.BASELINE_PRODUCTION: _to_nixtla(
-            test_df[baseline_filter], config.COL_BASELINE_PROJECTION
-        ),
+        config.BASELINE_PRODUCTION: _to_nixtla(test_df[baseline_filter], config.COL_BASELINE_PROJECTION),
         config.BASELINE_ADJUSTED_DRAFT: _to_nixtla(test_df[baseline_filter], adjusted_draft_column),
-        config.BASELINE_ADJUSTED_PUBLISHED: _to_nixtla(
-            test_df[baseline_filter], adjusted_published_column
-        ),
+        config.BASELINE_ADJUSTED_PUBLISHED: _to_nixtla(test_df[baseline_filter], adjusted_published_column),
         config.BASELINE_PRODUCTION_STRICT: _to_nixtla(test_df, config.COL_BASELINE_PROJECTION),
         config.BASELINE_ADJUSTED_DRAFT_STRICT: _to_nixtla(test_df, adjusted_draft_column),
     }
@@ -204,8 +199,7 @@ def build_actuals(
     subset = test_df
     if config.EXCLUDE_ZERO_PROJECTION_FROM_EVAL:
         subset = test_df[
-            test_df[config.COL_BASELINE_PROJECTION].notna()
-            & (test_df[config.COL_BASELINE_PROJECTION] > 0)
+            test_df[config.COL_BASELINE_PROJECTION].notna() & (test_df[config.COL_BASELINE_PROJECTION] > 0)
         ]
 
     return (
@@ -260,9 +254,7 @@ def build_actuals_strict(
 def summarize_actual_vs_forecast_data(interval_df: pd.DataFrame, location_ids: list[str]) -> dict:
     """Coverage summary (counts, date range, median intervals/location) for logging."""
     location_subset = interval_df[interval_df[config.COL_ENTITY_UID].isin(location_ids)]
-    intervals_per_location = location_subset.groupby(config.COL_ENTITY_UID)[
-        config.COL_INTERVAL_START_TS
-    ].nunique()
+    intervals_per_location = location_subset.groupby(config.COL_ENTITY_UID)[config.COL_INTERVAL_START_TS].nunique()
     return {
         "n_locations": len(location_ids),
         "n_rows": len(location_subset),
@@ -283,9 +275,7 @@ def build_vsd_hours_lookup(actual_vs_forecast_df: pd.DataFrame) -> dict[str, int
     if config.COL_BUSINESS_START_HOUR_UTC not in actual_vs_forecast_df.columns:
         return {}
 
-    grouped = actual_vs_forecast_df.groupby(config.COL_ENTITY_UID)[
-        config.COL_BUSINESS_START_HOUR_UTC
-    ]
+    grouped = actual_vs_forecast_df.groupby(config.COL_ENTITY_UID)[config.COL_BUSINESS_START_HOUR_UTC]
 
     modes_per_location = {uid: hours.dropna().mode() for uid, hours in grouped}
 
@@ -342,9 +332,7 @@ def fill_fallback_intervals(
     ts_col = config.COL_INTERVAL_START_TS
 
     actual_vs_forecast_work = actual_vs_forecast_df.copy()
-    actual_vs_forecast_work["_vsd"] = (
-        actual_vs_forecast_work[uid_col].map(vsd_hours).fillna(0).astype(int)
-    )
+    actual_vs_forecast_work["_vsd"] = actual_vs_forecast_work[uid_col].map(vsd_hours).fillna(0).astype(int)
     actual_vs_forecast_work["_biz_day"] = _business_day_series(
         actual_vs_forecast_work[ts_col], actual_vs_forecast_work["_vsd"]
     )
@@ -383,9 +371,7 @@ def fill_fallback_intervals(
 
     nixtla_work = nixtla_df.copy()
     nixtla_work["_vsd"] = nixtla_work[config.NIXTLA_UNIQUE_ID].map(vsd_hours).fillna(0).astype(int)
-    nixtla_work["_biz_day"] = _business_day_series(
-        nixtla_work[config.NIXTLA_DS], nixtla_work["_vsd"]
-    )
+    nixtla_work["_biz_day"] = _business_day_series(nixtla_work[config.NIXTLA_DS], nixtla_work["_vsd"])
     timestamps = nixtla_work[config.NIXTLA_DS].dt
     nixtla_work["_slot"] = timestamps.hour * 4 + timestamps.minute // 15
     nixtla_work["_dow"] = pd.to_datetime(nixtla_work["_biz_day"]).dt.dayofweek
@@ -397,15 +383,13 @@ def fill_fallback_intervals(
     )
     fallback_mask = nixtla_work["_daily_total"].notna()
 
-    nixtla_work["_day_total"] = nixtla_work.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])[
-        config.NIXTLA_Y
-    ].transform("sum")
+    nixtla_work["_day_total"] = nixtla_work.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])[config.NIXTLA_Y].transform(
+        "sum"
+    )
 
     share_base = nixtla_work[~fallback_mask & (nixtla_work["_day_total"] > 0)].copy()
     share_base["_share"] = share_base[config.NIXTLA_Y] / share_base["_day_total"]
-    avg_shares = (
-        share_base.groupby([config.NIXTLA_UNIQUE_ID, "_dow", "_slot"])["_share"].mean().to_dict()
-    )
+    avg_shares = share_base.groupby([config.NIXTLA_UNIQUE_ID, "_dow", "_slot"])["_share"].mean().to_dict()
 
     fallback_rows = nixtla_work[fallback_mask].copy()
 
@@ -418,14 +402,8 @@ def fill_fallback_intervals(
         )
     ]
 
-    share_sums = (
-        fallback_rows.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])["_share"]
-        .transform("sum")
-        .replace(0, 1.0)
-    )
-    fallback_rows[config.NIXTLA_Y] = (
-        fallback_rows["_daily_total"] * fallback_rows["_share"] / share_sums
-    )
+    share_sums = fallback_rows.groupby([config.NIXTLA_UNIQUE_ID, "_biz_day"])["_share"].transform("sum").replace(0, 1.0)
+    fallback_rows[config.NIXTLA_Y] = fallback_rows["_daily_total"] * fallback_rows["_share"] / share_sums
 
     nixtla_work.loc[fallback_mask, config.NIXTLA_Y] = fallback_rows[config.NIXTLA_Y].values
 

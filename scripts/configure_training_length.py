@@ -57,8 +57,7 @@ def parse_args() -> argparse.Namespace:
         "--data-path",
         type=str,
         default=None,
-        help="Override path to daily_actual_vs_forecast.csv "
-        "(default: data/input/daily_actual_vs_forecast.csv)",
+        help="Override path to daily_actual_vs_forecast.csv " "(default: data/input/daily_actual_vs_forecast.csv)",
     )
     parser.add_argument(
         "--test-windows",
@@ -112,9 +111,7 @@ def assess_location_history(
         location_ranges[col] = location_ranges["available_weeks"] >= weeks
         pool_sizes[weeks] = int(location_ranges[col].sum())
 
-    fixed_pool_ids = location_ranges.loc[
-        location_ranges["available_weeks"] >= max_checkpoint, "unique_id"
-    ].tolist()
+    fixed_pool_ids = location_ranges.loc[location_ranges["available_weeks"] >= max_checkpoint, "unique_id"].tolist()
 
     total = len(location_ranges)
     logger.info("Location history pre-check (reference date: %s):", test_start.date())
@@ -151,13 +148,9 @@ def determine_test_windows(
     for i in range(n_windows):
         anchor = base_anchor - pd.Timedelta(weeks=i)
         test_end = anchor
-        test_start = (
-            anchor - pd.Timedelta(weeks=config.TEST_PERIOD_WEEKS) + pd.Timedelta(days=1)
-        )
+        test_start = anchor - pd.Timedelta(weeks=config.TEST_PERIOD_WEEKS) + pd.Timedelta(days=1)
         windows.append((test_start, test_end))
-        logger.info(
-            "Test window %d: %s -> %s", i + 1, test_start.date(), test_end.date()
-        )
+        logger.info("Test window %d: %s -> %s", i + 1, test_start.date(), test_end.date())
 
     return windows
 
@@ -175,10 +168,7 @@ def _evaluate_pool(
     if pool_ids is not None:
         id_set = set(pool_ids)
         actuals = actuals[actuals[config.NIXTLA_UNIQUE_ID].isin(id_set)]
-        predictions = {
-            name: df[df[config.NIXTLA_UNIQUE_ID].isin(id_set)]
-            for name, df in predictions.items()
-        }
+        predictions = {name: df[df[config.NIXTLA_UNIQUE_ID].isin(id_set)] for name, df in predictions.items()}
 
     all_location_metrics = {
         name: compute_metrics(
@@ -209,9 +199,7 @@ def _pool_result_rows(
 ) -> list[dict]:
     """Per-model result rows for one (training-length, window, pool) cell."""
     win_loss_idx = (
-        win_loss_df.set_index("model")
-        if not win_loss_df.empty and "model" in win_loss_df.columns
-        else pd.DataFrame()
+        win_loss_df.set_index("model") if not win_loss_df.empty and "model" in win_loss_df.columns else pd.DataFrame()
     )
     stat_idx = (
         stat_tests_df.set_index("model")
@@ -221,21 +209,9 @@ def _pool_result_rows(
 
     rows = []
     for model_name, location_metrics in all_location_metrics.items():
-        mae_mean = (
-            location_metrics["MAE"].mean()
-            if "MAE" in location_metrics.columns
-            else None
-        )
-        mae_median = (
-            location_metrics["MAE"].median()
-            if "MAE" in location_metrics.columns
-            else None
-        )
-        wape_mean = (
-            location_metrics["WAPE"].mean()
-            if "WAPE" in location_metrics.columns
-            else None
-        )
+        mae_mean = location_metrics["MAE"].mean() if "MAE" in location_metrics.columns else None
+        mae_median = location_metrics["MAE"].median() if "MAE" in location_metrics.columns else None
+        wape_mean = location_metrics["WAPE"].mean() if "WAPE" in location_metrics.columns else None
 
         win_rate = p_value = significant = None
         if model_name != config.BASELINE_MODEL:
@@ -377,9 +353,7 @@ def summarize_ablation(detail_df: pd.DataFrame) -> pd.DataFrame:
         .reset_index()
     )
 
-    return summary.sort_values(["pool_type", "model", "training_weeks"]).reset_index(
-        drop=True
-    )
+    return summary.sort_values(["pool_type", "model", "training_weeks"]).reset_index(drop=True)
 
 
 def _build_chart(
@@ -404,8 +378,7 @@ def _build_chart(
         gridspec_kw={"hspace": 0.35},
     )
     fig.suptitle(
-        "Forecast accuracy vs training history length\n"
-        "(fixed location pool; location set held constant)",
+        "Forecast accuracy vs training history length\n" "(fixed location pool; location set held constant)",
         fontsize=12,
     )
 
@@ -475,9 +448,7 @@ def _build_chart(
         alpha=0.5,
         label="50% break-even",
     )
-    ax_win.axvline(
-        MSTL_YEARLY_MIN_WEEKS, color="grey", linestyle=":", linewidth=1.2, zorder=0
-    )
+    ax_win.axvline(MSTL_YEARLY_MIN_WEEKS, color="grey", linestyle=":", linewidth=1.2, zorder=0)
     ax_win.set_ylim(0, 1)
     ax_win.set_ylabel("Win rate vs Baseline Production")
     ax_win.set_xlabel("Training history (weeks)")
@@ -543,9 +514,7 @@ def main() -> None:
 
     actual_vs_forecast_df = load_daily_actual_vs_forecast(args.data_path)
 
-    test_windows = determine_test_windows(
-        actual_vs_forecast_df, n_windows=args.test_windows
-    )
+    test_windows = determine_test_windows(actual_vs_forecast_df, n_windows=args.test_windows)
 
     reference_test_start = test_windows[0][0]
     history_df, fixed_pool_ids, pool_sizes = assess_location_history(
@@ -562,9 +531,7 @@ def main() -> None:
         )
         return
 
-    nixtla_full = actual_vs_forecast_df[
-        actual_vs_forecast_df[config.COL_ACTUAL_VALUE].notna()
-    ][
+    nixtla_full = actual_vs_forecast_df[actual_vs_forecast_df[config.COL_ACTUAL_VALUE].notna()][
         [config.COL_ENTITY_UID, config.COL_DAY_START_TIME, config.COL_ACTUAL_VALUE]
     ].rename(
         columns={

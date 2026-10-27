@@ -126,15 +126,8 @@ def _df_to_html(
         for col in columns:
             value = row[col]
             cell_class = ""
-            eligible = (
-                highlight_eligibility_check is None or highlight_eligibility_check(row)
-            )
-            if (
-                col == highlight_column
-                and baseline_value is not None
-                and isinstance(value, float)
-                and eligible
-            ):
+            eligible = highlight_eligibility_check is None or highlight_eligibility_check(row)
+            if col == highlight_column and baseline_value is not None and isinstance(value, float) and eligible:
                 if value < baseline_value * 0.99:
                     cell_class = "metric-good"
                 elif value > baseline_value * 1.01:
@@ -247,24 +240,17 @@ def _pick_interval_sample_locations(
     The representative day is the one whose total volume is closest to the
     location's median across the test period.
     """
-    if (
-        best_model not in all_location_metrics
-        or baseline_model not in all_location_metrics
-    ):
+    if best_model not in all_location_metrics or baseline_model not in all_location_metrics:
         return []
 
     model_df = all_location_metrics[best_model][[unique_id_col, "MAE"]].copy()
-    baseline_df = all_location_metrics[baseline_model][[unique_id_col, "MAE"]].rename(
-        columns={"MAE": "baseline_MAE"}
-    )
+    baseline_df = all_location_metrics[baseline_model][[unique_id_col, "MAE"]].rename(columns={"MAE": "baseline_MAE"})
     merged = model_df.merge(baseline_df, on=unique_id_col, how="inner")
     merged = merged[merged["baseline_MAE"] > 0].copy()
     if merged.empty:
         return []
 
-    merged["improvement"] = (merged["baseline_MAE"] - merged["MAE"]) / merged[
-        "baseline_MAE"
-    ]
+    merged["improvement"] = (merged["baseline_MAE"] - merged["MAE"]) / merged["baseline_MAE"]
     merged = merged.sort_values("improvement").reset_index(drop=True)
 
     candidates = [
@@ -298,24 +284,17 @@ def _pick_daily_sample_locations(
     unique_id_col: str = "unique_id",
 ) -> list[tuple[str, str]]:
     """Top, median, and bottom locations ranked by ``best_model`` vs baseline MAE improvement."""
-    if (
-        best_model not in all_location_metrics
-        or baseline_model not in all_location_metrics
-    ):
+    if best_model not in all_location_metrics or baseline_model not in all_location_metrics:
         return []
 
     model_df = all_location_metrics[best_model][[unique_id_col, "MAE"]].copy()
-    baseline_df = all_location_metrics[baseline_model][[unique_id_col, "MAE"]].rename(
-        columns={"MAE": "baseline_MAE"}
-    )
+    baseline_df = all_location_metrics[baseline_model][[unique_id_col, "MAE"]].rename(columns={"MAE": "baseline_MAE"})
     merged = model_df.merge(baseline_df, on=unique_id_col, how="inner")
     merged = merged[merged["baseline_MAE"] > 0].copy()
     if merged.empty:
         return []
 
-    merged["improvement"] = (merged["baseline_MAE"] - merged["MAE"]) / merged[
-        "baseline_MAE"
-    ]
+    merged["improvement"] = (merged["baseline_MAE"] - merged["MAE"]) / merged["baseline_MAE"]
     merged = merged.sort_values("improvement").reset_index(drop=True)
 
     return [
@@ -356,14 +335,9 @@ def _section_reporting_summary(
 
     verdict_cls = _verdict_class(improvement_pct or 0.0)
     label = _verdict_label(improvement_pct or 0.0)
-    improvement_str = (
-        f" ({improvement_pct:+.1f}% lower average forecast error)"
-        if improvement_pct is not None
-        else ""
-    )
+    improvement_str = f" ({improvement_pct:+.1f}% lower average forecast error)" if improvement_pct is not None else ""
     sig_note = (
-        " This result is <strong>statistically reliable</strong>; the improvement is "
-        "unlikely to be due to chance."
+        " This result is <strong>statistically reliable</strong>; the improvement is " "unlikely to be due to chance."
         if significant
         else " This result has <strong>not yet been confirmed as statistically reliable</strong>. "
         "More data across additional weeks may be needed to draw a firm conclusion."
@@ -432,9 +406,7 @@ def _section_business_impact(
         )
     else:
         intervals_per_day = 48  # ~12 revenue-generating hours per operating day
-        annual_impact = (
-            improvement_per_unit * intervals_per_day * n_locations * operating_days
-        )
+        annual_impact = improvement_per_unit * intervals_per_day * n_locations * operating_days
         formula_html = (
             f"Based on a ${improvement_per_unit:,.2f} reduction in average forecast error per "
             f"15-minute interval, across {n_locations:,} locations, over {operating_days} "
@@ -518,9 +490,7 @@ def _section_model_highlights(
         "Baseline": "#e67e22",
         "Unknown": "#95a5a6",
     }
-    baseline_mae = _get_agg_metric(
-        aggregate_metrics_dict, context.baseline_model, "MAE"
-    )
+    baseline_mae = _get_agg_metric(aggregate_metrics_dict, context.baseline_model, "MAE")
 
     cards_html = []
     for _, win_loss_row in nixtla_win_loss_sorted.head(3).iterrows():
@@ -533,9 +503,7 @@ def _section_model_highlights(
         family = MODEL_FAMILIES.get(model, "Unknown")
         card_color = family_colors.get(family, "#95a5a6")
 
-        items = [
-            f"<li>More accurate than Baseline at <strong>{win_rate:.0%} of locations</strong></li>"
-        ]
+        items = [f"<li>More accurate than Baseline at <strong>{win_rate:.0%} of locations</strong></li>"]
 
         if mae is not None and baseline_mae is not None and baseline_mae > 0:
             pct = (baseline_mae - mae) / baseline_mae * 100
@@ -554,9 +522,7 @@ def _section_model_highlights(
 
         desc = MODEL_DESCRIPTIONS.get(model, "")
         if desc:
-            items.append(
-                f'<li style="color:#7f8c8d;font-size:0.82rem;margin-top:6px">{desc}</li>'
-            )
+            items.append(f'<li style="color:#7f8c8d;font-size:0.82rem;margin-top:6px">{desc}</li>')
 
         cards_html.append(
             f'<div class="highlight-card" style="--card-color:{card_color}">'
@@ -578,9 +544,7 @@ def _section_summary_table(
     if win_loss_df.empty:
         return "<p>No model results available.</p>"
 
-    baseline_mae = _get_agg_metric(
-        aggregate_metrics_dict, context.baseline_model, "MAE"
-    )
+    baseline_mae = _get_agg_metric(aggregate_metrics_dict, context.baseline_model, "MAE")
 
     header = (
         "<tr>"
@@ -618,19 +582,13 @@ def _section_summary_table(
             vs_baseline_cls = ""
             verdict_str = "n/a"
 
-        win_cls = (
-            "metric-good"
-            if win_rate > 0.5
-            else ("metric-bad" if win_rate < 0.5 else "")
-        )
+        win_cls = "metric-good" if win_rate > 0.5 else ("metric-bad" if win_rate < 0.5 else "")
 
         if is_baseline:
             sig_str = "n/a"
         elif sig_result is not None:
             sig_str = (
-                '<span class="tag-better">Yes</span>'
-                if sig_result[0]
-                else '<span class="tag-neutral">Not yet</span>'
+                '<span class="tag-better">Yes</span>' if sig_result[0] else '<span class="tag-neutral">Not yet</span>'
             )
         else:
             sig_str = "n/a"
@@ -680,10 +638,7 @@ def _section_appendix_sig(
     context: ReportContext,
 ) -> str:
     if statistical_tests_df.empty:
-        return (
-            "<p>Insufficient data for significance testing "
-            "(requires at least 10 common locations).</p>"
-        )
+        return "<p>Insufficient data for significance testing " "(requires at least 10 common locations).</p>"
     return f"""<h3>Statistical Reliability (vs {_display_name(context.baseline_model)})</h3>
 <p class="text-muted">
   A Wilcoxon signed-rank test was run to determine whether each model's accuracy
@@ -700,9 +655,7 @@ def _section_appendix_model_descriptions(models_present: list[str]) -> str:
     for model in models_present:
         desc = MODEL_DESCRIPTIONS.get(model)
         if desc:
-            rows.append(
-                f"<tr><td><strong>{_display_name(model)}</strong></td><td>{desc}</td></tr>"
-            )
+            rows.append(f"<tr><td><strong>{_display_name(model)}</strong></td><td>{desc}</td></tr>")
     if not rows:
         return ""
     return f"""<table>
@@ -712,10 +665,7 @@ def _section_appendix_model_descriptions(models_present: list[str]) -> str:
 
 
 def _section_appendix_glossary() -> str:
-    rows = "".join(
-        f"<tr><td><strong>{m}</strong></td><td>{d}</td></tr>"
-        for m, d in METRIC_DEFINITIONS.items()
-    )
+    rows = "".join(f"<tr><td><strong>{m}</strong></td><td>{d}</td></tr>" for m, d in METRIC_DEFINITIONS.items())
     return f"""<h3>Metric Glossary</h3>
 <table>
   <thead><tr><th>Metric</th><th>Definition</th></tr></thead>
@@ -731,11 +681,7 @@ def _section_next_steps(
     """Plain-language next-step bullets, branched on improvement magnitude and significance."""
     display = _display_name(best_model)
 
-    if (
-        improvement_pct is not None
-        and improvement_pct >= VERDICT_GREEN * 100
-        and is_significant
-    ):
+    if improvement_pct is not None and improvement_pct >= VERDICT_GREEN * 100 and is_significant:
         items = [
             f"<li><strong>Consider a limited live pilot</strong> using <strong>{display}</strong> "
             f"at a representative sample of locations. The accuracy improvement is meaningful and "
@@ -795,11 +741,7 @@ def build_report(
     # collapse to empty output.
     effective_baseline_model: str = context.baseline_model or ""
 
-    sorted_win_loss = (
-        win_loss_df.sort_values("win_rate", ascending=False)
-        if not win_loss_df.empty
-        else win_loss_df
-    )
+    sorted_win_loss = win_loss_df.sort_values("win_rate", ascending=False) if not win_loss_df.empty else win_loss_df
     nixtla_win_loss_sorted = (
         sorted_win_loss[~sorted_win_loss["model"].str.startswith("Baseline_")]
         if not sorted_win_loss.empty
@@ -811,15 +753,9 @@ def build_report(
         if not nixtla_win_loss_sorted.empty
         else _best_nixtla_model_by_mae(aggregate_metrics_dict)
     )
-    best_win_rate = (
-        float(nixtla_win_loss_sorted.iloc[0]["win_rate"])
-        if not nixtla_win_loss_sorted.empty
-        else 0.0
-    )
+    best_win_rate = float(nixtla_win_loss_sorted.iloc[0]["win_rate"]) if not nixtla_win_loss_sorted.empty else 0.0
     best_mae = _get_agg_metric(aggregate_metrics_dict, best_model, "MAE")
-    baseline_mae = _get_agg_metric(
-        aggregate_metrics_dict, effective_baseline_model, "MAE"
-    )
+    baseline_mae = _get_agg_metric(aggregate_metrics_dict, effective_baseline_model, "MAE")
 
     improvement_pct: float | None = None
     if best_mae is not None and baseline_mae is not None and baseline_mae > 0:
@@ -828,9 +764,7 @@ def build_report(
     sig_result = _get_significance(statistical_tests_df, best_model)
     is_significant = bool(sig_result[0]) if sig_result is not None else False
 
-    win_loss_chart_base64 = charts.win_loss_bar_chart(
-        sorted_win_loss, effective_baseline_model
-    )
+    win_loss_chart_base64 = charts.win_loss_bar_chart(sorted_win_loss, effective_baseline_model)
     mae_chart_base64 = charts.aggregate_metric_bar_chart(
         aggregate_metrics_dict,
         metric="MAE",
@@ -839,11 +773,7 @@ def build_report(
     cv_chart_base64 = charts.cv_metric_chart(cv_metrics_df, metric="MAE")
     donut_chart_base64 = charts.win_loss_donut_chart(win_loss_df, best_model)
 
-    nixtla_predictions = {
-        name: df
-        for name, df in predictions_dict.items()
-        if not name.startswith("Baseline_")
-    }
+    nixtla_predictions = {name: df for name, df in predictions_dict.items() if not name.startswith("Baseline_")}
     location_charts_html = ""
     if context.interval == "15min":
         interval_samples = _pick_interval_sample_locations(
@@ -862,9 +792,8 @@ def build_report(
                 location_label=loc_label,
             )
             if base64_chart:
-                location_charts_html += (
-                    f'<h4 style="margin:20px 0 4px;color:#2c3e50">{loc_label}</h4>'
-                    + _img_tag(base64_chart)
+                location_charts_html += f'<h4 style="margin:20px 0 4px;color:#2c3e50">{loc_label}</h4>' + _img_tag(
+                    base64_chart
                 )
     else:
         daily_samples = _pick_daily_sample_locations(
@@ -883,9 +812,8 @@ def build_report(
             )
             if base64_chart:
                 if loc_label:
-                    location_charts_html += (
-                        f'<h4 style="margin:20px 0 4px;color:#2c3e50">{loc_label}</h4>'
-                        + _img_tag(base64_chart)
+                    location_charts_html += f'<h4 style="margin:20px 0 4px;color:#2c3e50">{loc_label}</h4>' + _img_tag(
+                        base64_chart
                     )
                 else:
                     location_charts_html += _img_tag(base64_chart)
@@ -895,11 +823,7 @@ def build_report(
         if not nixtla_win_loss_sorted.empty
         else sum(1 for k in aggregate_metrics_dict if not k.startswith("Baseline_"))
     )
-    all_beat = (
-        int((nixtla_win_loss_sorted["win_rate"] > 0.5).sum())
-        if not nixtla_win_loss_sorted.empty
-        else 0
-    )
+    all_beat = int((nixtla_win_loss_sorted["win_rate"] > 0.5).sum()) if not nixtla_win_loss_sorted.empty else 0
     granularity_label = "day" if context.interval == "daily" else "15-minute interval"
     if improvement_pct is not None and improvement_pct > 0:
         sig_item = (
@@ -953,13 +877,9 @@ def build_report(
             f"</ul>"
         )
 
-    business_impact_html = _section_business_impact(
-        best_mae, baseline_mae, context.n_locations, context
-    )
+    business_impact_html = _section_business_impact(best_mae, baseline_mae, context.n_locations, context)
 
-    all_models_present = (
-        list(win_loss_df["model"].unique()) if not win_loss_df.empty else []
-    )
+    all_models_present = list(win_loss_df["model"].unique()) if not win_loss_df.empty else []
     html_out = f"""<!DOCTYPE html>
 <html lang="en">
 <head>

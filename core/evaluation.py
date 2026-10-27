@@ -39,23 +39,15 @@ def compute_metrics(
     if aligned_rows.empty:
         return pd.DataFrame(columns=[_NIXTLA_UNIQUE_ID] + _METRICS)
 
-    aligned_rows["_abs_error"] = (
-        aligned_rows[f"{_NIXTLA_Y}_actual"] - aligned_rows[f"{_NIXTLA_Y}_pred"]
-    ).abs()
-    aligned_rows["_sq_error"] = (
-        aligned_rows[f"{_NIXTLA_Y}_actual"] - aligned_rows[f"{_NIXTLA_Y}_pred"]
-    ) ** 2
+    aligned_rows["_abs_error"] = (aligned_rows[f"{_NIXTLA_Y}_actual"] - aligned_rows[f"{_NIXTLA_Y}_pred"]).abs()
+    aligned_rows["_sq_error"] = (aligned_rows[f"{_NIXTLA_Y}_actual"] - aligned_rows[f"{_NIXTLA_Y}_pred"]) ** 2
 
     actual_values = aligned_rows[f"{_NIXTLA_Y}_actual"]
-    aligned_rows["_pct_error"] = np.where(
-        actual_values > 0, aligned_rows["_abs_error"] / actual_values, np.nan
-    )
+    aligned_rows["_pct_error"] = np.where(actual_values > 0, aligned_rows["_abs_error"] / actual_values, np.nan)
 
     def compute_location_metrics(location_rows):
         actual_sum = location_rows[f"{_NIXTLA_Y}_actual"].sum()
-        wape = (
-            location_rows["_abs_error"].sum() / actual_sum if actual_sum > 0 else np.nan
-        )
+        wape = location_rows["_abs_error"].sum() / actual_sum if actual_sum > 0 else np.nan
         return pd.Series(
             {
                 "MAE": location_rows["_abs_error"].mean(),
@@ -66,11 +58,7 @@ def compute_metrics(
             }
         )
 
-    location_metrics = (
-        aligned_rows.groupby(_NIXTLA_UNIQUE_ID)
-        .apply(compute_location_metrics)
-        .reset_index()
-    )
+    location_metrics = aligned_rows.groupby(_NIXTLA_UNIQUE_ID).apply(compute_location_metrics).reset_index()
     return location_metrics
 
 
@@ -128,11 +116,7 @@ def compute_cv_metrics(
         abs_errors = (actuals - predictions).abs()
 
         positive_actuals_sum = actuals[actuals > 0].sum()
-        wape = (
-            abs_errors.sum() / positive_actuals_sum
-            if positive_actuals_sum > 0
-            else np.nan
-        )
+        wape = abs_errors.sum() / positive_actuals_sum if positive_actuals_sum > 0 else np.nan
 
         summary_rows.append(
             {
@@ -156,9 +140,7 @@ def compute_win_loss(
         logger.warning("Baseline model '%s' not found in metrics dict", baseline_model)
         return pd.DataFrame()
 
-    baseline_mae = all_location_metrics[baseline_model].set_index(_NIXTLA_UNIQUE_ID)[
-        "MAE"
-    ]
+    baseline_mae = all_location_metrics[baseline_model].set_index(_NIXTLA_UNIQUE_ID)["MAE"]
 
     comparison_rows = []
     for model_name, location_metrics in all_location_metrics.items():
@@ -179,20 +161,14 @@ def compute_win_loss(
                 "losses": losses,
                 "ties": ties,
                 "n_locations": len(common_locations),
-                "win_rate": wins / len(common_locations)
-                if len(common_locations) > 0
-                else 0.0,
+                "win_rate": wins / len(common_locations) if len(common_locations) > 0 else 0.0,
             }
         )
 
     if not comparison_rows:
         return pd.DataFrame()
 
-    return (
-        pd.DataFrame(comparison_rows)
-        .sort_values("win_rate", ascending=False)
-        .reset_index(drop=True)
-    )
+    return pd.DataFrame(comparison_rows).sort_values("win_rate", ascending=False).reset_index(drop=True)
 
 
 def compute_statistical_tests(
@@ -208,9 +184,7 @@ def compute_statistical_tests(
     if baseline_model not in all_location_metrics:
         return pd.DataFrame()
 
-    baseline_mae = all_location_metrics[baseline_model].set_index(_NIXTLA_UNIQUE_ID)[
-        "MAE"
-    ]
+    baseline_mae = all_location_metrics[baseline_model].set_index(_NIXTLA_UNIQUE_ID)["MAE"]
 
     test_rows = []
     for model_name, location_metrics in all_location_metrics.items():
@@ -230,8 +204,7 @@ def compute_statistical_tests(
         n_ties = len(differences_clean) - n_unique
         if n_ties > len(differences_clean) * 0.1:
             logger.warning(
-                "Model %s has %d ties in %d differences (%.1f%%) - "
-                "Wilcoxon test may be less accurate",
+                "Model %s has %d ties in %d differences (%.1f%%) - " "Wilcoxon test may be less accurate",
                 model_name,
                 n_ties,
                 len(differences_clean),
@@ -271,9 +244,7 @@ def build_volume_tiers(actuals: pd.DataFrame) -> pd.DataFrame:
     try:
         volume_tiers = pd.qcut(mean_location_sales, q=4, labels=tier_labels)
     except ValueError:
-        volume_tiers = pd.qcut(
-            mean_location_sales.rank(method="first"), q=4, labels=tier_labels
-        )
+        volume_tiers = pd.qcut(mean_location_sales.rank(method="first"), q=4, labels=tier_labels)
     return pd.DataFrame(
         {
             _NIXTLA_UNIQUE_ID: mean_location_sales.index,
@@ -303,42 +274,22 @@ def save_metrics(
     timestamp = datetime.now().strftime(_TIMESTAMP_FORMAT)
 
     combined_location_metrics = pd.concat(
-        [
-            df.assign(model=model_name)
-            for model_name, df in all_location_metrics.items()
-        ],
+        [df.assign(model=model_name) for model_name, df in all_location_metrics.items()],
         ignore_index=True,
     )
-    combined_location_metrics.to_csv(
-        output_dir / f"{file_prefix}location_metrics_{timestamp}.csv", index=False
-    )
-    aggregate_metrics_df.to_csv(
-        output_dir / f"{file_prefix}aggregate_metrics_{timestamp}.csv", index=False
-    )
-    win_loss_df.to_csv(
-        output_dir / f"{file_prefix}win_loss_{timestamp}.csv", index=False
-    )
-    statistical_tests_df.to_csv(
-        output_dir / f"{file_prefix}statistical_tests_{timestamp}.csv", index=False
-    )
+    combined_location_metrics.to_csv(output_dir / f"{file_prefix}location_metrics_{timestamp}.csv", index=False)
+    aggregate_metrics_df.to_csv(output_dir / f"{file_prefix}aggregate_metrics_{timestamp}.csv", index=False)
+    win_loss_df.to_csv(output_dir / f"{file_prefix}win_loss_{timestamp}.csv", index=False)
+    statistical_tests_df.to_csv(output_dir / f"{file_prefix}statistical_tests_{timestamp}.csv", index=False)
     if not cv_metrics_df.empty:
-        cv_metrics_df.to_csv(
-            output_dir / f"{file_prefix}cv_metrics_{timestamp}.csv", index=False
-        )
+        cv_metrics_df.to_csv(output_dir / f"{file_prefix}cv_metrics_{timestamp}.csv", index=False)
     if actuals is not None:
-        actuals.to_csv(
-            output_dir / f"{file_prefix}actuals_{timestamp}.csv", index=False
-        )
+        actuals.to_csv(output_dir / f"{file_prefix}actuals_{timestamp}.csv", index=False)
     if actuals_strict is not None:
-        actuals_strict.to_csv(
-            output_dir / f"{file_prefix}actuals_strict_{timestamp}.csv", index=False
-        )
+        actuals_strict.to_csv(output_dir / f"{file_prefix}actuals_strict_{timestamp}.csv", index=False)
     if predictions_dict is not None:
         pd.concat(
-            [
-                df.assign(model=model_name)
-                for model_name, df in predictions_dict.items()
-            ],
+            [df.assign(model=model_name) for model_name, df in predictions_dict.items()],
             ignore_index=True,
         ).to_csv(output_dir / f"{file_prefix}predictions_{timestamp}.csv", index=False)
     logger.info(

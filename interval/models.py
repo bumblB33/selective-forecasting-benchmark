@@ -26,8 +26,7 @@ def _build_statsforecast_models() -> list:
             factory = trend_forecaster_factories.get(value)
             if factory is None:
                 raise ValueError(
-                    f"Unknown trend_forecaster string '{value}'. "
-                    "Pass an instantiated model object instead."
+                    f"Unknown trend_forecaster string '{value}'. " "Pass an instantiated model object instead."
                 )
             return factory()
         return value
@@ -69,9 +68,7 @@ def _build_mlforecast_model(model_name: str, model_cfg: dict):
     from lightgbm import LGBMRegressor
 
     lgbm_kwargs = {
-        key: value
-        for key, value in model_cfg.items()
-        if key not in ("lags", "date_features", "num_threads")
+        key: value for key, value in model_cfg.items() if key not in ("lags", "date_features", "num_threads")
     }
     return LGBMRegressor(**lgbm_kwargs, verbose=-1, random_state=config.RANDOM_SEED)
 
@@ -87,9 +84,7 @@ def run_statsforecast(training_df: pd.DataFrame) -> dict[str, pd.DataFrame]:
     if not models:
         return {}
 
-    core_train = training_df[
-        [config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]
-    ].copy()
+    core_train = training_df[[config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]].copy()
 
     sf = StatsForecast(
         models=models,
@@ -141,8 +136,7 @@ def _filter_short_series_for_cv(df: pd.DataFrame) -> pd.DataFrame:
     dropped = len(lengths) - len(eligible)
     if dropped:
         logger.warning(
-            "CV: dropping %d/%d series with fewer than %d intervals "
-            "(h=%d, n_windows=%d, step_size=%d)",
+            "CV: dropping %d/%d series with fewer than %d intervals " "(h=%d, n_windows=%d, step_size=%d)",
             dropped,
             len(lengths),
             min_length,
@@ -162,9 +156,7 @@ def run_statsforecast_cv(training_df: pd.DataFrame) -> pd.DataFrame:
     if not models:
         return pd.DataFrame()
 
-    core_train = _filter_short_series_for_cv(
-        training_df[[config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]]
-    )
+    core_train = _filter_short_series_for_cv(training_df[[config.NIXTLA_UNIQUE_ID, config.NIXTLA_DS, config.NIXTLA_Y]])
     if core_train.empty:
         return pd.DataFrame()
 
@@ -209,9 +201,7 @@ def run_mlforecast(
     from mlforecast import MLForecast
 
     all_exog_columns = list(config.FUTURE_EXOGENOUS_FEATURES) + (fourier_columns or [])
-    available_exog = derive_available_exog(
-        training_df, all_exog_columns, config.MLFORECAST_MODELS
-    )
+    available_exog = derive_available_exog(training_df, all_exog_columns, config.MLFORECAST_MODELS)
 
     results: dict[str, pd.DataFrame] = {}
 
@@ -221,9 +211,7 @@ def run_mlforecast(
             config.NIXTLA_DS,
             config.NIXTLA_Y,
         ] + available_exog
-        core_train = training_df[
-            [c for c in core_columns if c in training_df.columns]
-        ].copy()
+        core_train = training_df[[c for c in core_columns if c in training_df.columns]].copy()
 
         model = _build_mlforecast_model(model_name, model_cfg)
         fcst = MLForecast(
@@ -307,9 +295,7 @@ def run_mlforecast_cv(
     from mlforecast import MLForecast
 
     all_exog_columns = list(config.FUTURE_EXOGENOUS_FEATURES) + (fourier_columns or [])
-    available_exog = derive_available_exog(
-        training_df, all_exog_columns, config.MLFORECAST_MODELS
-    )
+    available_exog = derive_available_exog(training_df, all_exog_columns, config.MLFORECAST_MODELS)
 
     all_cv_parts: list[pd.DataFrame] = []
 
@@ -319,9 +305,7 @@ def run_mlforecast_cv(
             config.NIXTLA_DS,
             config.NIXTLA_Y,
         ] + available_exog
-        core_train = _filter_short_series_for_cv(
-            training_df[[c for c in core_columns if c in training_df.columns]]
-        )
+        core_train = _filter_short_series_for_cv(training_df[[c for c in core_columns if c in training_df.columns]])
         if core_train.empty:
             continue
 
